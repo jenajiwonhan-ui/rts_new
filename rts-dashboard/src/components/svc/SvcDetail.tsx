@@ -154,51 +154,51 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
         <span className="sec-num">2</span> Details
       </div>
 
-      {/* Controls */}
-      <div className="gpd-filter-row">
-        <span className="frl">Period</span>
-        <PeriodSelect ymList={YM} value={fromYm} onChange={setFromYm} />
-        <span className="sep">~</span>
-        <PeriodSelect ymList={YM} value={toYm} onChange={setToYm} />
-        <span className="sep">|</span>
-        <span className="frl">Product</span>
-        <select
-          className="fi"
-          value={prodFilter}
-          onChange={e => setProdFilter(e.target.value)}
-        >
-          <option value="__all">All</option>
-          {products.map(p => (
-            <option key={p} value={p}>{p}</option>
-          ))}
-        </select>
-        <span className="sep">|</span>
-        <Toggle
-          options={[
-            { value: 'monthly', label: 'Monthly' },
-            { value: 'weekly', label: 'Weekly' },
-          ]}
-          value={tmMode}
-          onChange={v => setTmMode(v as 'monthly' | 'weekly')}
-        />
-        <div style={{ marginLeft: 'auto' }}>
-          <input
-            className="fi"
-            placeholder="Search member..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ minWidth: 180 }}
-          />
+      <div className="gpd-panel" style={{ padding: 20 }}>
+        {/* Controls */}
+        <div className="gpd-panel-header" style={{ padding: '0 0 12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span className="frl">Period</span>
+            <PeriodSelect ymList={YM} value={fromYm} onChange={setFromYm} />
+            <span className="sep">~</span>
+            <PeriodSelect ymList={YM} value={toYm} onChange={setToYm} />
+            <span className="frl" style={{ marginLeft: 6 }}>Product</span>
+            <select
+              className="fi"
+              value={prodFilter}
+              onChange={e => setProdFilter(e.target.value)}
+              style={{ maxWidth: 200 }}
+            >
+              <option value="__all">All</option>
+              {products.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+            <input
+              className="fi"
+              placeholder="Search member..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ minWidth: 150 }}
+            />
+          </div>
+          <div className="gpd-controls">
+            <Toggle
+              options={[
+                { value: 'monthly', label: 'Monthly' },
+                { value: 'weekly', label: 'Weekly' },
+              ]}
+              value={tmMode}
+              onChange={v => setTmMode(v as 'monthly' | 'weekly')}
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Table */}
-      <div className="tbl">
-        <div className="tbl-h">
-          <h3>Resource Details</h3>
-          <span className="cnt">{rows.length} rows</span>
-        </div>
-        <div className="tbl-s" style={{ overflowX: 'auto', maxHeight: 600 }}>
+        {/* Table */}
+        <div style={{ overflow: 'auto', maxHeight: '70vh' }}>
+          <div className="svc-tbl-cnt" style={{ fontSize: 12, color: 'var(--ts)', padding: '0 0 6px' }}>
+            {rows.length} rows
+          </div>
           <table>
             <thead>
               <tr>

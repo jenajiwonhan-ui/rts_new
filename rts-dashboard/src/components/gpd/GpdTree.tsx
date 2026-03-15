@@ -159,46 +159,46 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
         <span className="sec-num">2</span> Details
       </div>
 
-      {/* Controls */}
-      <div className="gpd-filter-row">
-        <span className="frl">Period</span>
-        <PeriodSelect ymList={YM} value={fromYm} onChange={setFromYm} />
-        <span className="sep">~</span>
-        <PeriodSelect ymList={YM} value={toYm} onChange={setToYm} />
-        <span className="sep">|</span>
-        <span className="frl">Depth</span>
-        <Toggle
-          options={[
-            { value: '1', label: 'Lv.1' },
-            { value: '2', label: 'Lv.2' },
-            { value: 'a', label: 'All' },
-          ]}
-          value={depth}
-          onChange={v => setDepth(v as '1' | '2' | 'a')}
-          className="depth-tgl"
-        />
-        <span className="sep">|</span>
-        <Toggle
-          options={[
-            { value: 'monthly', label: 'Monthly' },
-            { value: 'weekly', label: 'Weekly' },
-          ]}
-          value={tmMode}
-          onChange={v => setTmMode(v as 'monthly' | 'weekly')}
-        />
-        <div style={{ marginLeft: 'auto' }}>
-          <input
-            className="fi"
-            placeholder="Search member..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ minWidth: 180 }}
-          />
+      <div className="gpd-panel" style={{ padding: 20 }}>
+        {/* Controls */}
+        <div className="gpd-panel-header" style={{ padding: '0 0 12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span className="frl" style={{ marginLeft: 8 }}>Period</span>
+            <PeriodSelect ymList={YM} value={fromYm} onChange={setFromYm} />
+            <span className="sep">~</span>
+            <PeriodSelect ymList={YM} value={toYm} onChange={setToYm} />
+            <input
+              className="fi"
+              placeholder="Search member..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ minWidth: 150, marginLeft: 6 }}
+            />
+          </div>
+          <div className="gpd-controls">
+            <Toggle
+              options={[
+                { value: '1', label: 'Lv.1' },
+                { value: '2', label: 'Lv.2' },
+                { value: 'a', label: 'All' },
+              ]}
+              value={depth}
+              onChange={v => setDepth(v as '1' | '2' | 'a')}
+              className="depth-tgl"
+            />
+            <Toggle
+              options={[
+                { value: 'monthly', label: 'Monthly' },
+                { value: 'weekly', label: 'Weekly' },
+              ]}
+              value={tmMode}
+              onChange={v => setTmMode(v as 'monthly' | 'weekly')}
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Tree */}
-      <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 700 }}>
+        {/* Tree */}
+        <div id="gpd-tree-wrap" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '70vh' }}>
         {/* Header */}
         <div className="tree-hdr">
           <div className="tree-hdr-name">Organization</div>
@@ -306,6 +306,7 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

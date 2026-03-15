@@ -90,35 +90,38 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
           if (bi > 0) prevTotal += (chart.data.datasets[di].data[bi - 1] as number) || 0;
         }
         if (total <= 0 || topY === Infinity) continue;
+        const firstBar = chart.getDatasetMeta(0).data[bi] as any;
+        const barW = firstBar?.width ?? 30;
+        if (barW < 30) continue;
 
         ctx.save();
-        const totalText = total.toFixed(2);
+        const totalText = total.toFixed(1);
 
         if (bi > 0) {
           const diff = total - prevTotal;
-          const diffText = ` ${diff >= 0 ? '+' : ''}${diff.toFixed(2)}`;
+          const diffText = ` ${diff >= 0 ? '+' : ''}${diff.toFixed(1)}`;
 
-          ctx.font = '600 10px Pretendard, sans-serif';
+          ctx.font = '600 13px Pretendard, sans-serif';
           const totalW = ctx.measureText(totalText).width;
-          ctx.font = '400 9px Pretendard, sans-serif';
+          ctx.font = '400 11.5px Pretendard, sans-serif';
           const diffW = ctx.measureText(diffText).width;
           const startX = lastMeta.data[bi].x - (totalW + diffW) / 2;
 
           ctx.textBaseline = 'alphabetic';
           ctx.textAlign = 'left';
-          ctx.font = '600 10px Pretendard, sans-serif';
+          ctx.font = '600 13px Pretendard, sans-serif';
           ctx.fillStyle = '#5f6280';
-          ctx.fillText(totalText, startX, topY - 6);
+          ctx.fillText(totalText, startX, topY - 10);
 
-          ctx.font = '400 9px Pretendard, sans-serif';
+          ctx.font = '400 11.5px Pretendard, sans-serif';
           ctx.fillStyle = diff >= 0 ? '#4a8cb8' : '#c07060';
-          ctx.fillText(diffText, startX + totalW, topY - 6);
+          ctx.fillText(diffText, startX + totalW, topY - 10);
         } else {
-          ctx.font = '600 10px Pretendard, sans-serif';
+          ctx.font = '600 13px Pretendard, sans-serif';
           ctx.fillStyle = '#5f6280';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'alphabetic';
-          ctx.fillText(totalText, lastMeta.data[bi].x, topY - 6);
+          ctx.fillText(totalText, lastMeta.data[bi].x, topY - 10);
         }
 
         // Per-segment labels
@@ -128,7 +131,8 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
           const bar = chart.getDatasetMeta(di).data[bi] as any;
           if (!bar) continue;
           const segH = Math.abs(bar.base - bar.y);
-          if (segH < 16) continue;
+          const barW = bar.width ?? 30;
+          if (segH < 16 || barW < 30) continue;
           const pct = (v / total) * 100;
           if (pct < 10) continue;
 
@@ -139,32 +143,32 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
           if (bi > 0) {
             const prevV = (chart.data.datasets[di].data[bi - 1] as number) || 0;
             const segDiff = v - prevV;
-            const valText = v.toFixed(2);
-            const diffText = ` ${segDiff >= 0 ? '+' : ''}${segDiff.toFixed(2)}`;
+            const valText = v.toFixed(1);
+            const diffText = ` ${segDiff >= 0 ? '+' : ''}${segDiff.toFixed(1)}`;
 
-            ctx.font = '600 9px Pretendard, sans-serif';
+            ctx.font = '600 11.5px Pretendard, sans-serif';
             const valW = ctx.measureText(valText).width;
-            ctx.font = '400 8px Pretendard, sans-serif';
+            ctx.font = '400 10px Pretendard, sans-serif';
             const diffW = ctx.measureText(diffText).width;
             const startX = bar.x - (valW + diffW) / 2;
 
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'left';
-            ctx.font = '600 9px Pretendard, sans-serif';
-            ctx.fillStyle = isDark ? 'rgba(255,255,255,0.9)' : 'rgba(58,61,74,0.7)';
+            ctx.font = '600 11.5px Pretendard, sans-serif';
+            ctx.fillStyle = isDark ? 'rgba(255,255,255,0.92)' : 'rgba(58,61,74,0.75)';
             ctx.fillText(valText, startX, cy);
 
-            ctx.font = '400 8px Pretendard, sans-serif';
+            ctx.font = '400 10px Pretendard, sans-serif';
             ctx.fillStyle = segDiff >= 0
               ? (isDark ? '#90d0f0' : '#4a8cb8')
               : (isDark ? '#f0b8b0' : '#c07060');
             ctx.fillText(diffText, startX + valW, cy);
           } else {
-            ctx.font = '600 9px Pretendard, sans-serif';
-            ctx.fillStyle = isDark ? 'rgba(255,255,255,0.9)' : 'rgba(58,61,74,0.7)';
+            ctx.font = '600 11.5px Pretendard, sans-serif';
+            ctx.fillStyle = isDark ? 'rgba(255,255,255,0.92)' : 'rgba(58,61,74,0.75)';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(v.toFixed(2), bar.x, cy);
+            ctx.fillText(v.toFixed(1), bar.x, cy);
           }
         }
 
@@ -177,6 +181,7 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
 
   return (
     <div className="person-detail-row">
+      <ChartLegend items={personData.legendItems} className="person-legend" />
       <div style={{ position: 'relative', height: 250 }}>
         <Bar
           key={`${name}-${tmMode}-${personData.labels.length}`}
@@ -185,17 +190,9 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
           options={{
             responsive: true,
             maintainAspectRatio: false,
-            animation: {
-              y: {
-                type: 'number' as const,
-                from: (ctx: any) => {
-                  if (ctx.type === 'data') return ctx.chart.chartArea?.bottom ?? ctx.chart.height;
-                  return undefined;
-                },
-                duration: 800,
-                easing: 'easeOutCubic' as const,
-              },
-            },
+            __personInline: true,
+            layout: { padding: { top: 32 } },
+            animation: false as const,
             plugins: {
               legend: { display: false },
               datalabels: { display: false },
@@ -204,7 +201,7 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
                   label: (ctx: any) => {
                     const val = ctx.raw as number;
                     if (val === 0) return '';
-                    return `${ctx.dataset.label}: ${val.toFixed(2)}`;
+                    return `${ctx.dataset.label}: ${val.toFixed(1)}`;
                   },
                 },
               },
@@ -213,19 +210,17 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
               bar: { categoryPercentage: 0.6 },
             },
             scales: {
-              x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
+              x: { stacked: true, grid: { display: false }, ticks: { font: { size: 12, family: 'Pretendard' } } },
               y: {
                 stacked: true,
-                max: 1,
-                grace: '20%',
-                title: { display: true, text: tmMode === 'monthly' ? 'M/M' : 'Weekly RTS', font: { size: 10 } },
-                ticks: { font: { size: 10 } },
+                max: 1.0,
+                title: { display: true, text: tmMode === 'monthly' ? 'M/M' : 'Weekly RTS', font: { size: 12, family: 'Pretendard' } },
+                ticks: { font: { size: 11, family: 'Pretendard' } },
               },
             },
           } as any}
         />
       </div>
-      <ChartLegend items={personData.legendItems} className="person-legend" />
     </div>
   );
 };

@@ -133,12 +133,7 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
   }, [sortCol, sortDir]);
 
   const togglePerson = useCallback((key: string) => {
-    setExpandedPersons(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    setExpandedPersons(prev => prev.has(key) ? new Set() : new Set([key]));
   }, []);
 
   const colWidths = [120, 120, 130, 160];
@@ -196,77 +191,73 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
 
         {/* Table */}
         <div style={{ overflow: 'auto', maxHeight: '70vh' }}>
-          <div className="svc-tbl-cnt" style={{ fontSize: 12, color: 'var(--ts)', padding: '0 0 6px' }}>
-            {rows.length} rows
+          {/* Header */}
+          <div className="tree-hdr">
+            <div className="svc-hdr-name">
+              <span className="svc-hdr-field" style={{ width: colWidths[0] }} onClick={() => handleSort('lv2')}>
+                Lv.2 {renderSortIcon('lv2')}
+              </span>
+              <span className="svc-hdr-field" style={{ width: colWidths[1] }} onClick={() => handleSort('lv3')}>
+                Lv.3 {renderSortIcon('lv3')}
+              </span>
+              <span className="svc-hdr-field" style={{ width: colWidths[2] }} onClick={() => handleSort('member')}>
+                Member {renderSortIcon('member')}
+              </span>
+              <span className="svc-hdr-field" style={{ width: colWidths[3] }} onClick={() => handleSort('product')}>
+                Product {renderSortIcon('product')}
+              </span>
+            </div>
+            <span className="tree-spacer" />
+            {timeKeys.map(k => (
+              <div key={k} className="tree-tc tree-tc-hdr">
+                {tmMode === 'monthly' ? ymLabel(k) : (WM[k] || k)}
+              </div>
+            ))}
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th style={{ width: colWidths[0], minWidth: colWidths[0] }} onClick={() => handleSort('lv2')}>
-                  Lv.2 {renderSortIcon('lv2')}
-                </th>
-                <th style={{ width: colWidths[1], minWidth: colWidths[1] }} onClick={() => handleSort('lv3')}>
-                  Lv.3 {renderSortIcon('lv3')}
-                </th>
-                <th style={{ width: colWidths[2], minWidth: colWidths[2] }} onClick={() => handleSort('member')}>
-                  Member {renderSortIcon('member')}
-                </th>
-                <th style={{ width: colWidths[3], minWidth: colWidths[3] }} onClick={() => handleSort('product')}>
-                  Product {renderSortIcon('product')}
-                </th>
-                {timeKeys.map(k => (
-                  <th key={k} className="wk-val" style={{ minWidth: 46 }}>
-                    {tmMode === 'monthly' ? ymLabel(k) : (WM[k] || k)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sortedRows.map((row, i) => {
-                const rowKey = `${row.member}|${row.product}|${i}`;
-                return (
-                  <React.Fragment key={rowKey}>
-                    <tr>
-                      <td>{row.lv2}</td>
-                      <td>{row.lv3}</td>
-                      <td>
-                        <span
-                          className="tree-detail-link"
-                          onClick={() => togglePerson(rowKey)}
-                          style={{ marginRight: 6 }}
-                          title="Show detail chart"
-                        >
-                          <svg viewBox="0 0 16 14" width="16" height="14" fill="none" stroke={expandedPersons.has(rowKey) ? '#6c5ce7' : '#9498b0'} strokeWidth="1.5">
-                            <rect x="1" y="1" width="14" height="12" rx="2" />
-                            <polyline points="4,10 6,6 9,8 12,4" />
-                          </svg>
-                        </span>
-                        {row.member}
-                      </td>
-                      <td>{row.product}</td>
-                      {timeKeys.map(k => (
-                        <td key={k} className={`wk-val ${!row.times[k] ? 'zero' : ''}`}>
-                          {fmtVal(row.times[k])}
-                        </td>
-                      ))}
-                    </tr>
-                    {expandedPersons.has(rowKey) && (
-                      <tr>
-                        <td colSpan={4 + timeKeys.length} style={{ padding: 0 }}>
-                          <PersonInlineChart
-                            name={row.member}
-                            detail={detail}
-                            range={range}
-                            tmMode={tmMode}
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+
+          {/* Body */}
+          {sortedRows.map((row, i) => {
+            const rowKey = `${row.member}|${row.product}|${i}`;
+            return (
+              <React.Fragment key={rowKey}>
+                <div className="tree-row svc-tbl-row" style={{ borderBottom: '1px solid #f1f2f6' }}>
+                  <div className="svc-row-name">
+                    <span className="svc-row-field" style={{ width: colWidths[0] }}>{row.lv2}</span>
+                    <span className="svc-row-field" style={{ width: colWidths[1] }}>{row.lv3}</span>
+                    <span className="svc-row-field svc-f-member" style={{ width: colWidths[2] }}>
+                      <span
+                        className="tree-detail-link"
+                        onClick={() => togglePerson(rowKey)}
+                        title="Show detail chart"
+                        style={{ marginRight: 6 }}
+                      >
+                        <svg viewBox="0 0 16 14" fill="none" stroke={expandedPersons.has(rowKey) ? '#6c5ce7' : '#9498b0'} strokeWidth="1.5">
+                          <rect x="1" y="1" width="14" height="12" rx="2" />
+                          <polyline points="4,10 6,6 9,8 12,4" />
+                        </svg>
+                      </span>
+                      {row.member}
+                    </span>
+                    <span className="svc-row-field svc-f-prod" style={{ width: colWidths[3] }}>{row.product}</span>
+                  </div>
+                  <span className="tree-spacer" />
+                  {timeKeys.map(k => (
+                    <div key={k} className="tree-row-tc">
+                      {fmtVal(row.times[k])}
+                    </div>
+                  ))}
+                </div>
+                {expandedPersons.has(rowKey) && (
+                  <PersonInlineChart
+                    name={row.member}
+                    detail={detail}
+                    range={range}
+                    tmMode={tmMode}
+                  />
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
       </div>
     </div>

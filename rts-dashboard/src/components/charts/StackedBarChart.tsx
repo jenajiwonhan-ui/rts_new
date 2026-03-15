@@ -20,8 +20,7 @@ const gpdTopLabelPlugin = {
     if (chart.config.type !== 'bar') return;
     const dlOpts = chart.options?.plugins?.datalabels;
     if (!dlOpts || (dlOpts as any).display !== false) return;
-    const canvasId = (chart.canvas?.id || '');
-    if (canvasId.startsWith('person-inline')) return;
+    if ((chart.options as any).__personInline) return;
 
     const ctx = chart.ctx;
     const dsCount = chart.data.datasets.length;
@@ -243,18 +242,14 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
       return [ctx.dataset.label, `${val.toFixed(2)} MM${diffStr}`];
     };
 
-    const yFromBottom = {
-      type: 'number' as const,
-      from: (ctx: any) => {
-        if (ctx.type === 'data') {
-          return ctx.chart.chartArea?.bottom ?? ctx.chart.height;
-        }
-        return undefined;
-      },
+    const animationOpts = {
       duration: 800,
       easing: 'easeOutCubic' as const,
+      delay: (ctx: any) => {
+        if (ctx.type === 'data') return ctx.dataIndex * 80;
+        return 0;
+      },
     };
-    const animationOpts = { y: yFromBottom };
     const transitionOpts = {
       active: { animation: { duration: 200 } },
       resize: { animation: { duration: 0 } },

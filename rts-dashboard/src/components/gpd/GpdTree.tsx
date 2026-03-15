@@ -61,12 +61,7 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
   }, [org, product]);
 
   const togglePerson = useCallback((key: string) => {
-    setExpandedPersons(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    setExpandedPersons(prev => prev.has(key) ? new Set() : new Set([key]));
   }, []);
 
   const toggleLv1 = useCallback((key: string) => {

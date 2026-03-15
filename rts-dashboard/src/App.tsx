@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import D from './data';
+import D, { YM } from './data';
+import { SvcDropdownOption } from './types';
 import Header from './components/layout/Header';
 import Breadcrumb from './components/layout/Breadcrumb';
 import Sidebar from './components/layout/Sidebar';
@@ -56,6 +57,36 @@ const App: React.FC = () => {
     return Object.entries(cfg.products).map(([short, full]) => ({ short, full }));
   }, [activeOrg]);
 
+  // SVC dropdown options
+  const svcDropdownOptions = useMemo((): SvcDropdownOption[] => {
+    if (!activeOrg || viewMode !== 'svc') return [];
+    const prevYm = YM[YM.length - 2] || YM[YM.length - 1];
+    const orgDetail = D.detail.filter(d => d.b === activeOrg && d.ym === prevYm);
+    const lv2Map: Record<string, Set<string>> = {};
+    for (const d of orgDetail) {
+      let l2: string;
+      if (d.d !== '-') l2 = d.d;
+      else if (d.t !== '-') l2 = d.t;
+      else continue;
+      if (!lv2Map[l2]) lv2Map[l2] = new Set();
+      let l3: string | null = null;
+      if (d.d !== '-' && d.t !== '-') l3 = d.t;
+      else if (d.d !== '-' && d.pt !== '-') l3 = d.pt;
+      else if (d.t !== '-' && d.pt !== '-') l3 = d.pt;
+      if (l3) lv2Map[l2].add(l3);
+    }
+    const opts: SvcDropdownOption[] = [
+      { value: '__all', label: `${activeOrg} All`, level: '1', indent: 0 },
+    ];
+    for (const l2 of Object.keys(lv2Map).sort()) {
+      opts.push({ value: l2, label: l2, level: '2', indent: 1 });
+      for (const l3 of Array.from(lv2Map[l2]).sort()) {
+        opts.push({ value: l3, label: l3, level: '3', indent: 2 });
+      }
+    }
+    return opts;
+  }, [activeOrg, viewMode]);
+
   // Breadcrumb parts
   const breadcrumbParts = useMemo(() => {
     if (viewMode === 'home') return [];
@@ -94,7 +125,7 @@ const App: React.FC = () => {
         <div className="main-area">
           {/* Product Tab Bar for GPD */}
           {viewMode === 'gpd' && gpdTabs.length > 0 && (
-            <div className="prod-tab-bar">
+            <div className="filter-bar">
               <button
                 className={`prod-tab ${curGpdProd === null ? 'active' : ''}`}
                 onClick={() => handleGpdProdSelect(null)}
@@ -110,6 +141,26 @@ const App: React.FC = () => {
                   {tab.short}
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Filter Bar for SVC */}
+          {viewMode === 'svc' && svcDropdownOptions.length > 0 && (
+            <div className="filter-bar">
+              <select
+                className="svc-org-select"
+                value={curSvcLv2 || '__all'}
+                onChange={e => {
+                  const opt = svcDropdownOptions.find(o => o.value === e.target.value);
+                  if (opt) handleSvcLv2Change(opt.value === '__all' ? null : opt.value, opt.level);
+                }}
+              >
+                {svcDropdownOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {'　'.repeat(opt.indent)}{opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

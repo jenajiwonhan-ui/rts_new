@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import D, { YM, WM } from '../../data';
 import { DetailRecord } from '../../types';
 import { getWeeksPerMonth, getSvcLv2, getSvcLv3, getWeeksInRange } from '../../utils/aggregation';
@@ -136,7 +136,49 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
     setExpandedPersons(prev => prev.has(key) ? new Set() : new Set([key]));
   }, []);
 
-  const colWidths = [120, 120, 130, 160];
+  const [colWidths, setColWidths] = useState([120, 120, 150, 160]);
+  const resizingCol = useRef<number | null>(null);
+  const resizeStartX = useRef(0);
+  const resizeStartW = useRef(0);
+
+  const handleResizeStart = useCallback((colIdx: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingCol.current = colIdx;
+    resizeStartX.current = e.clientX;
+    resizeStartW.current = colWidths[colIdx];
+
+    const onMove = (ev: MouseEvent) => {
+      if (resizingCol.current === null) return;
+      const diff = ev.clientX - resizeStartX.current;
+      const newW = Math.max(60, resizeStartW.current + diff);
+      setColWidths(prev => {
+        const next = [...prev];
+        next[resizingCol.current!] = newW;
+        return next;
+      });
+    };
+    const onUp = () => {
+      resizingCol.current = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [colWidths]);
+
+  const totalFixedW = colWidths.reduce((s, w) => s + w, 0) + 16;
+  const tableWrapRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to rightmost (latest date) when tmMode changes
+  useEffect(() => {
+    const el = tableWrapRef.current;
+    if (el) {
+      requestAnimationFrame(() => {
+        el.scrollLeft = el.scrollWidth;
+      });
+    }
+  }, [tmMode]);
 
   const renderSortIcon = (col: string) => {
     if (sortCol !== col) return <span className="sort-btn">↕</span>;
@@ -189,25 +231,25 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
           </div>
         </div>
 
-        {/* Table */}
-        <div style={{ overflow: 'auto', maxHeight: '70vh' }}>
+        {/* Table: single scroll, sticky fixed cols */}
+        <div className="svc-table-wrap" ref={tableWrapRef} style={{ '--svc-fixed-w': `${totalFixedW}px` } as React.CSSProperties}>
           {/* Header */}
-          <div className="tree-hdr">
-            <div className="svc-hdr-name">
-              <span className="svc-hdr-field" style={{ width: colWidths[0] }} onClick={() => handleSort('lv2')}>
-                Lv.2 {renderSortIcon('lv2')}
-              </span>
-              <span className="svc-hdr-field" style={{ width: colWidths[1] }} onClick={() => handleSort('lv3')}>
-                Lv.3 {renderSortIcon('lv3')}
-              </span>
-              <span className="svc-hdr-field" style={{ width: colWidths[2] }} onClick={() => handleSort('member')}>
-                Member {renderSortIcon('member')}
-              </span>
-              <span className="svc-hdr-field" style={{ width: colWidths[3] }} onClick={() => handleSort('product')}>
-                Product {renderSortIcon('product')}
-              </span>
+          <div className="svc-tbl-hdr">
+            <div className="svc-hdr-fixed" style={{ width: totalFixedW }}>
+              {['lv2', 'lv3', 'member', 'product'].map((col, ci) => (
+                <span
+                  key={col}
+                  className="svc-hdr-field"
+                  style={{ width: colWidths[ci] }}
+                  onClick={() => handleSort(col)}
+                >
+                  {col === 'lv2' ? 'Lv.2' : col === 'lv3' ? 'Lv.3' : col === 'member' ? 'Member' : 'Product'}
+                  {renderSortIcon(col)}
+                  <span className="svc-col-resize" onMouseDown={e => handleResizeStart(ci, e)} />
+                </span>
+              ))}
             </div>
-            <span className="tree-spacer" />
+            <div className="svc-time-spacer" />
             {timeKeys.map(k => (
               <div key={k} className="tree-tc tree-tc-hdr">
                 {tmMode === 'monthly' ? ymLabel(k) : (WM[k] || k)}
@@ -220,8 +262,8 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
             const rowKey = `${row.member}|${row.product}|${i}`;
             return (
               <React.Fragment key={rowKey}>
-                <div className="tree-row svc-tbl-row" style={{ borderBottom: '1px solid #f1f2f6' }}>
-                  <div className="svc-row-name">
+                <div className="svc-tbl-row">
+                  <div className="svc-row-fixed" style={{ width: totalFixedW }}>
                     <span className="svc-row-field" style={{ width: colWidths[0] }}>{row.lv2}</span>
                     <span className="svc-row-field" style={{ width: colWidths[1] }}>{row.lv3}</span>
                     <span className="svc-row-field svc-f-member" style={{ width: colWidths[2] }}>
@@ -240,11 +282,9 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
                     </span>
                     <span className="svc-row-field svc-f-prod" style={{ width: colWidths[3] }}>{row.product}</span>
                   </div>
-                  <span className="tree-spacer" />
+                  <div className="svc-time-spacer" />
                   {timeKeys.map(k => (
-                    <div key={k} className="tree-row-tc">
-                      {fmtVal(row.times[k])}
-                    </div>
+                    <div key={k} className="tree-row-tc">{fmtVal(row.times[k])}</div>
                   ))}
                 </div>
                 {expandedPersons.has(rowKey) && (

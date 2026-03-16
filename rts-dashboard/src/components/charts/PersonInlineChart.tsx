@@ -95,34 +95,6 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
         if (barW < 30) continue;
 
         ctx.save();
-        const totalText = total.toFixed(1);
-
-        if (bi > 0) {
-          const diff = total - prevTotal;
-          const diffText = ` ${diff >= 0 ? '+' : ''}${diff.toFixed(1)}`;
-
-          ctx.font = '600 13px Pretendard, sans-serif';
-          const totalW = ctx.measureText(totalText).width;
-          ctx.font = '400 11.5px Pretendard, sans-serif';
-          const diffW = ctx.measureText(diffText).width;
-          const startX = lastMeta.data[bi].x - (totalW + diffW) / 2;
-
-          ctx.textBaseline = 'alphabetic';
-          ctx.textAlign = 'left';
-          ctx.font = '600 13px Pretendard, sans-serif';
-          ctx.fillStyle = '#5f6280';
-          ctx.fillText(totalText, startX, topY - 10);
-
-          ctx.font = '400 11.5px Pretendard, sans-serif';
-          ctx.fillStyle = diff >= 0 ? '#4a8cb8' : '#c07060';
-          ctx.fillText(diffText, startX + totalW, topY - 10);
-        } else {
-          ctx.font = '600 13px Pretendard, sans-serif';
-          ctx.fillStyle = '#5f6280';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'alphabetic';
-          ctx.fillText(totalText, lastMeta.data[bi].x, topY - 10);
-        }
 
         // Per-segment labels
         for (let di = 0; di < dsCount; di++) {

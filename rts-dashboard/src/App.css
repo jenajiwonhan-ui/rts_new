@@ -293,18 +293,28 @@
 .ms-i input { accent-color: var(--accent); width: 13px; height: 13px; }
 
 /* Tree */
+.gpd-tree-wrap {
+  overflow: auto; max-height: 70vh;
+}
+.gpd-tree-wrap::-webkit-scrollbar { height: 8px; }
+.gpd-tree-wrap::-webkit-scrollbar-track {
+  margin-left: 378px;
+  background: #f0f0f4; border-radius: 4px;
+}
+.gpd-tree-wrap::-webkit-scrollbar-thumb {
+  background: #c0c2ce; border-radius: 4px;
+}
+.gpd-tree-wrap::-webkit-scrollbar-thumb:hover { background: #a0a2ae; }
+.tree-time-spacer { flex: 1 0 0; }
+
 .tree-lv1 { margin-bottom: 2px; }
 .tree-lv1-header {
-  display: flex; justify-content: space-between;
-  align-items: center; padding: 10px 16px;
-  background: var(--accent); color: #fff;
-  border-radius: 6px; cursor: pointer;
-  font-weight: 700; font-size: 14px;
+  background: var(--card); color: var(--text);
+  cursor: pointer; font-weight: 700; font-size: 14px;
 }
-.tree-lv1-header:hover { opacity: .9; }
-.tree-lv1-right { display: flex; gap: 16px; align-items: center; font-size: 13px; }
-.tree-lv1-mm { color: #fff; font-weight: 700; }
-.tree-lv1-cnt { color: rgba(255,255,255,.5); font-size: 11px; }
+.tree-lv1-header > .tree-fixed { background: var(--card); }
+.tree-lv1-header:hover { background: #f0f0ff; }
+.tree-lv1-header:hover > .tree-fixed { background: #f0f0ff; }
 .tree-body { padding: 0; }
 .tree-arrow {
   display: inline-block; margin-right: 8px;
@@ -312,17 +322,23 @@
 }
 
 .tree-hdr {
-  display: flex; padding: 7px 16px; min-height: 38px;
+  display: flex; padding: 0; min-height: 38px;
   background: var(--bg); font-size: 11px;
   font-weight: 600; color: var(--td);
-  position: sticky; top: 0; z-index: 3;
+  position: sticky; top: 0; z-index: 10;
   border-bottom: 1px solid var(--border);
-  align-items: center; width: max-content; min-width: 100%;
+  align-items: stretch; width: max-content; min-width: 100%;
 }
+.tree-fixed {
+  display: flex; align-items: center;
+  position: sticky; left: 0; z-index: 3;
+  background: inherit; flex-shrink: 0;
+  padding: 7px 8px 7px 16px;
+  border-right: 2px solid var(--border);
+}
+.tree-hdr .tree-fixed { z-index: 11; background: var(--bg); }
 .tree-hdr-name {
   flex: 0 0 320px; white-space: nowrap;
-  position: sticky; left: 0; z-index: 4;
-  background: var(--bg);
 }
 .tree-hdr-cnt {
   width: 42px; text-align: center; flex-shrink: 0;
@@ -331,27 +347,32 @@
 .tree-tc {
   width: 60px; text-align: right; flex-shrink: 0;
   padding: 0 4px; font-size: 11px;
-  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  align-self: center;
 }
 .tree-tc-hdr { font-size: 10px; font-weight: 600; color: var(--td); }
 
 .tree-row {
-  display: flex; padding: 7px 16px; min-height: 38px;
-  font-size: 13px; align-items: center;
+  display: flex; padding: 0; min-height: 38px;
+  font-size: 13px; align-items: stretch;
   background: var(--card); width: max-content; min-width: 100%;
 }
-.tree-row:nth-child(even) { background: #f9f9fc; }
+.tree-lv2-row { background: #f5f5ff; }
+.tree-lv2-row > .tree-fixed { background: #f5f5ff; }
+.tree-zebra:nth-child(even) { background: #f9f9fc; }
+.tree-zebra:nth-child(even) > .tree-fixed { background: #f9f9fc; }
 .tree-row:hover { background: #f0f0ff; }
+.tree-row:hover > .tree-fixed { background: #f0f0ff; }
 
 .tree-row-name {
   flex: 0 0 320px; color: var(--text);
-  white-space: nowrap; position: sticky;
-  left: 0; z-index: 2; background: inherit;
+  white-space: nowrap;
 }
 .tree-row-tc {
   width: 60px; text-align: right; flex-shrink: 0;
   padding: 0 4px; font-size: 12px;
-  color: var(--ts); border-right: 1px solid var(--border);
+  color: var(--ts); border-left: 1px solid var(--border);
+  align-self: center;
 }
 .tree-row-cnt {
   width: 42px; text-align: center; color: var(--ba);

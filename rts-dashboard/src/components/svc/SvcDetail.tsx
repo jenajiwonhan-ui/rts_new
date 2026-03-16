@@ -62,7 +62,6 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
     const wpm = getWeeksPerMonth(filtered);
 
     if (tmMode === 'monthly') {
-      // Group by (member, product, lv2, lv3) and sum by month
       const groups: Record<string, FlatRow> = {};
       for (const d of filtered) {
         const lv2 = getSvcLv2(d);
@@ -78,7 +77,6 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
       }
       return Object.values(groups);
     } else {
-      // Weekly: each record becomes a flat row
       const groups: Record<string, FlatRow> = {};
       for (const d of filtered) {
         const lv2 = getSvcLv2(d);

@@ -103,12 +103,6 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
     }
   }, [tmMode]);
 
-  const relevantProducts = useMemo(() => {
-    const cfg = D.gpd_config[org];
-    if (!cfg) return null;
-    if (product) return new Set([product]);
-    return new Set(Object.values(cfg.products));
-  }, [org, product]);
 
   const togglePerson = useCallback((key: string) => {
     setExpandedPersons(prev => prev.has(key) ? new Set() : new Set([key]));
@@ -204,7 +198,8 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
             detail={D.detail}
             range={range}
             tmMode={tmMode}
-            relevantProducts={relevantProducts}
+            onClose={() => togglePerson(personKey)}
+            scrollRef={treeWrapRef}
           />
         )}
       </React.Fragment>

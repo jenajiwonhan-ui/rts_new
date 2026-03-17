@@ -291,6 +291,8 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
                     detail={detail}
                     range={range}
                     tmMode={tmMode}
+                    onClose={() => togglePerson(rowKey)}
+                    scrollRef={tableWrapRef}
                   />
                 )}
               </React.Fragment>

@@ -403,17 +403,30 @@
 }
 .tree-detail-link svg { width: 16px; height: 14px; }
 
-.person-detail-row {
-  padding: 12px 20px 12px 36px;
-  margin-left: 0; background: var(--bg);
-  min-height: 280px;
-  animation: slideDown .3s ease-out;
-  overflow: hidden;
+/* Person inline chart (sticky inside scroll container) */
+.person-inline-wrap {
+  position: sticky; left: 0;
+  z-index: 5;
 }
-@keyframes slideDown {
-  from { max-height: 0; opacity: 0; }
-  to { max-height: 600px; opacity: 1; }
+.person-inline-panel {
+  background: var(--card); border-radius: 8px;
+  padding: 16px 20px; margin: 4px 0;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 12px rgba(0,0,0,.08);
 }
+.person-modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px;
+}
+.person-modal-name {
+  font-size: 16px; font-weight: 700; color: var(--text);
+}
+.person-modal-close {
+  background: none; border: none; font-size: 18px;
+  color: var(--ts); cursor: pointer; padding: 4px 8px;
+  border-radius: 4px;
+}
+.person-modal-close:hover { background: var(--bg); color: var(--text); }
 
 /* SVC Detail Table (single scroll, sticky fixed cols) */
 .svc-table-wrap {

@@ -245,10 +245,6 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
     const animationOpts = {
       duration: 800,
       easing: 'easeOutCubic' as const,
-      delay: (ctx: any) => {
-        if (ctx.type === 'data') return ctx.dataIndex * 80;
-        return 0;
-      },
     };
     const transitionOpts = {
       active: { animation: { duration: 200 } },
@@ -272,7 +268,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
           },
         },
         datasets: {
-          bar: { categoryPercentage: 0.6 },
+          bar: { categoryPercentage: isWeekly ? 0.85 : 0.6 },
         },
         scales: {
           x: {
@@ -327,7 +323,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
           },
         },
         datasets: {
-          bar: { categoryPercentage: 0.6 },
+          bar: { categoryPercentage: isWeekly ? 0.85 : 0.6 },
         },
         scales: {
           x: {

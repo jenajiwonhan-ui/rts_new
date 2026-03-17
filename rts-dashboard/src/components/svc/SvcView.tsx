@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import D, { YM, WM } from '../../data';
-import { DetailRecord, SvcDropdownOption } from '../../types';
+import { DetailRecord } from '../../types';
 import {
   getWeeksPerMonth, buildProdColors, getWeeksInRange,
 } from '../../utils/aggregation';
@@ -19,39 +19,11 @@ interface SvcViewProps {
   onLv2Change: (lv2: string | null, lvl: string) => void;
 }
 
-const GPD_CLR: Record<string, string> = { GPD1: '#73b7c5', GPD2: '#d59875', GPD3: '#b0b474' };
+const GPD_CLR: Record<string, string> = { GPD1: '#7CB8E0', GPD2: '#E0A8A0', GPD3: '#80C0A0' };
 
 const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
   const [tmMode, setTmMode] = useState<'monthly' | 'weekly'>('monthly');
-
-  // Build dropdown options
-  const dropdownOptions = useMemo((): SvcDropdownOption[] => {
-    const prevYm = YM[YM.length - 2] || YM[YM.length - 1];
-    const orgDetail = D.detail.filter(d => d.b === org && d.ym === prevYm);
-    const lv2Map: Record<string, Set<string>> = {};
-    for (const d of orgDetail) {
-      let l2: string;
-      if (d.d !== '-') l2 = d.d;
-      else if (d.t !== '-') l2 = d.t;
-      else continue;
-      if (!lv2Map[l2]) lv2Map[l2] = new Set();
-      let l3: string | null = null;
-      if (d.d !== '-' && d.t !== '-') l3 = d.t;
-      else if (d.d !== '-' && d.pt !== '-') l3 = d.pt;
-      else if (d.t !== '-' && d.pt !== '-') l3 = d.pt;
-      if (l3) lv2Map[l2].add(l3);
-    }
-    const opts: SvcDropdownOption[] = [
-      { value: '__all', label: `${org} All`, level: '1', indent: 0 },
-    ];
-    for (const l2 of Object.keys(lv2Map).sort()) {
-      opts.push({ value: l2, label: l2, level: '2', indent: 1 });
-      for (const l3 of Array.from(lv2Map[l2]).sort()) {
-        opts.push({ value: l3, label: l3, level: '3', indent: 2 });
-      }
-    }
-    return opts;
-  }, [org]);
+  const [hlLabel, setHlLabel] = useState<string | null>(null);
 
   // Filter detail for this service org
   const detail = useMemo(() => {
@@ -165,31 +137,11 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
     return items;
   }, [pieData.top]);
 
-  const selectedDropdownValue = lv2 || '__all';
-
   return (
     <div className="content">
       {/* Section 1: Overview */}
       <div className="sec">
         <div className="sec-title"><span className="sec-num">1</span>Overview</div>
-
-        {/* Sub-org dropdown inside Overview */}
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '0 0 16px' }}>
-          <select
-            className="svc-org-select"
-            value={selectedDropdownValue}
-            onChange={e => {
-              const opt = dropdownOptions.find(o => o.value === e.target.value);
-              if (opt) onLv2Change(opt.value === '__all' ? null : opt.value, opt.level);
-            }}
-          >
-            {dropdownOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>
-                {'　'.repeat(opt.indent)}{opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
 
         <div className="gpd-panels">
           {/* Panel 1: 3M Trend */}
@@ -207,7 +159,7 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
                 />
               </div>
             </div>
-            <ChartLegend items={barData.legendItems} className="gpd-legend" />
+            <ChartLegend items={barData.legendItems} className="gpd-legend" highlightedLabel={hlLabel} onHighlight={setHlLabel} />
             <div style={{ padding: '0 16px' }}>
               <div style={{ position: 'relative', height: 380 }}>
                 <StackedBarChart
@@ -218,6 +170,8 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
                   mode="svcGpd"
                   timeMode={tmMode}
                   isSvc={true}
+                  highlightedLabel={hlLabel}
+                  onHighlight={setHlLabel}
                 />
               </div>
             </div>

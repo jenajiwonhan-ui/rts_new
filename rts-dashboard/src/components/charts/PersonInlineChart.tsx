@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 import { Bar } from 'react-chartjs-2';
 import D, { WM } from '../../data';
 import { getWeeksPerMonth, buildProdColors } from '../../utils/aggregation';
 import { ymLabel } from '../../utils/formatters';
-import { hexToRgba, hexLum } from '../../utils/colors';
+import { hexLum } from '../../utils/colors';
 import { DetailRecord } from '../../types';
 import ChartLegend from './ChartLegend';
 
@@ -12,12 +12,44 @@ interface PersonInlineChartProps {
   detail: DetailRecord[];
   range: string[];
   tmMode: 'monthly' | 'weekly';
-  relevantProducts?: Set<string> | null;
+  onClose?: () => void;
+  scrollRef?: React.RefObject<HTMLDivElement>;
 }
 
 const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
-  name, detail, range, tmMode, relevantProducts,
+  name, detail, range, tmMode, onClose, scrollRef,
 }) => {
+  // Measure visible width of scroll container
+  const [visibleW, setVisibleW] = useState(900);
+  const measure = useCallback(() => {
+    if (scrollRef?.current) {
+      setVisibleW(scrollRef.current.clientWidth);
+    }
+  }, [scrollRef]);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+
+  // Close on Escape key or click outside
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose?.(); };
+    const handleClick = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        onClose?.();
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    document.addEventListener('mousedown', handleClick);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      document.removeEventListener('mousedown', handleClick);
+    };
+  }, [onClose]);
+
   const personData = useMemo(() => {
     const records = detail.filter(d => d.n === name && range.includes(d.ym));
     if (records.length === 0) return null;
@@ -33,10 +65,7 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
           const total = recs.reduce((s, r) => s + r.tot, 0);
           return (wpm[ym] || 1) > 0 ? total / (wpm[ym] || 1) : 0;
         });
-        let bgColor = prodColors.colorMap[p] || '#ccc';
-        if (relevantProducts && !relevantProducts.has(p) && p !== 'Non-product' && p !== '휴가(Out of Office)') {
-          bgColor = hexToRgba(bgColor, 0.2);
-        }
+        const bgColor = prodColors.colorMap[p] || '#ccc';
         return {
           label: p,
           data,
@@ -57,15 +86,12 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
         const data = sortedWeeks.map(w => {
           return records.filter(r => r.p === p).reduce((s, r) => s + (r.wk[w] || 0), 0);
         });
-        let bgColor = prodColors.colorMap[p] || '#ccc';
-        if (relevantProducts && !relevantProducts.has(p) && p !== 'Non-product' && p !== '휴가(Out of Office)') {
-          bgColor = hexToRgba(bgColor, 0.2);
-        }
+        const bgColor = prodColors.colorMap[p] || '#ccc';
         return { label: p, data, backgroundColor: bgColor };
       });
       return { labels, datasets, legendItems: prodColors.allItems.map(p => ({ label: p, color: prodColors.colorMap[p] || '#ccc' })) };
     }
-  }, [name, detail, range, tmMode, relevantProducts]);
+  }, [name, detail, range, tmMode]);
 
   const inlinePlugin = useMemo(() => ({
     id: 'personInlineLabels',
@@ -90,36 +116,11 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
           if (bi > 0) prevTotal += (chart.data.datasets[di].data[bi - 1] as number) || 0;
         }
         if (total <= 0 || topY === Infinity) continue;
+        const firstBar = chart.getDatasetMeta(0).data[bi] as any;
+        const barW = firstBar?.width ?? 30;
+        if (barW < 30) continue;
 
         ctx.save();
-        const totalText = total.toFixed(2);
-
-        if (bi > 0) {
-          const diff = total - prevTotal;
-          const diffText = ` ${diff >= 0 ? '+' : ''}${diff.toFixed(2)}`;
-
-          ctx.font = '600 10px Pretendard, sans-serif';
-          const totalW = ctx.measureText(totalText).width;
-          ctx.font = '400 9px Pretendard, sans-serif';
-          const diffW = ctx.measureText(diffText).width;
-          const startX = lastMeta.data[bi].x - (totalW + diffW) / 2;
-
-          ctx.textBaseline = 'alphabetic';
-          ctx.textAlign = 'left';
-          ctx.font = '600 10px Pretendard, sans-serif';
-          ctx.fillStyle = '#5f6280';
-          ctx.fillText(totalText, startX, topY - 6);
-
-          ctx.font = '400 9px Pretendard, sans-serif';
-          ctx.fillStyle = diff >= 0 ? '#4a8cb8' : '#c07060';
-          ctx.fillText(diffText, startX + totalW, topY - 6);
-        } else {
-          ctx.font = '600 10px Pretendard, sans-serif';
-          ctx.fillStyle = '#5f6280';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'alphabetic';
-          ctx.fillText(totalText, lastMeta.data[bi].x, topY - 6);
-        }
 
         // Per-segment labels
         for (let di = 0; di < dsCount; di++) {
@@ -128,43 +129,45 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
           const bar = chart.getDatasetMeta(di).data[bi] as any;
           if (!bar) continue;
           const segH = Math.abs(bar.base - bar.y);
-          if (segH < 16) continue;
+          const barW = bar.width ?? 30;
+          if (segH < 12 || barW < 24) continue;
           const pct = (v / total) * 100;
-          if (pct < 10) continue;
+          if (pct < 8) continue;
 
           const bgc = (chart.data.datasets[di].backgroundColor as string) || '#888';
-          const isDark = hexLum(bgc) < 0.25;
+          const isDark = hexLum(bgc) < 0.45;
+          const valColor = isDark ? '#ffffff' : '#2a2d3a';
+          const posColor = isDark ? '#a0e0ff' : '#2a6f9e';
+          const negColor = isDark ? '#ffb0a0' : '#b04030';
           const cy = (bar.y + bar.base) / 2;
 
           if (bi > 0) {
             const prevV = (chart.data.datasets[di].data[bi - 1] as number) || 0;
             const segDiff = v - prevV;
-            const valText = v.toFixed(2);
-            const diffText = ` ${segDiff >= 0 ? '+' : ''}${segDiff.toFixed(2)}`;
+            const valText = v.toFixed(1);
+            const diffText = ` ${segDiff >= 0 ? '+' : ''}${segDiff.toFixed(1)}`;
 
-            ctx.font = '600 9px Pretendard, sans-serif';
+            ctx.font = '600 14px Pretendard, sans-serif';
             const valW = ctx.measureText(valText).width;
-            ctx.font = '400 8px Pretendard, sans-serif';
+            ctx.font = '400 12px Pretendard, sans-serif';
             const diffW = ctx.measureText(diffText).width;
             const startX = bar.x - (valW + diffW) / 2;
 
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'left';
-            ctx.font = '600 9px Pretendard, sans-serif';
-            ctx.fillStyle = isDark ? 'rgba(255,255,255,0.9)' : 'rgba(58,61,74,0.7)';
+            ctx.font = '600 14px Pretendard, sans-serif';
+            ctx.fillStyle = valColor;
             ctx.fillText(valText, startX, cy);
 
-            ctx.font = '400 8px Pretendard, sans-serif';
-            ctx.fillStyle = segDiff >= 0
-              ? (isDark ? '#90d0f0' : '#4a8cb8')
-              : (isDark ? '#f0b8b0' : '#c07060');
+            ctx.font = '400 12px Pretendard, sans-serif';
+            ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
             ctx.fillText(diffText, startX + valW, cy);
           } else {
-            ctx.font = '600 9px Pretendard, sans-serif';
-            ctx.fillStyle = isDark ? 'rgba(255,255,255,0.9)' : 'rgba(58,61,74,0.7)';
+            ctx.font = '600 14px Pretendard, sans-serif';
+            ctx.fillStyle = valColor;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(v.toFixed(2), bar.x, cy);
+            ctx.fillText(v.toFixed(1), bar.x, cy);
           }
         }
 
@@ -176,56 +179,46 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
   if (!personData) return null;
 
   return (
-    <div className="person-detail-row">
-      <div style={{ position: 'relative', height: 250 }}>
-        <Bar
-          key={`${name}-${tmMode}-${personData.labels.length}`}
-          data={{ labels: personData.labels, datasets: personData.datasets }}
-          plugins={[inlinePlugin]}
-          options={{
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: {
-              y: {
-                type: 'number' as const,
-                from: (ctx: any) => {
-                  if (ctx.type === 'data') return ctx.chart.chartArea?.bottom ?? ctx.chart.height;
-                  return undefined;
+    <div className="person-inline-wrap" style={{ width: visibleW }}>
+      <div className="person-inline-panel" ref={panelRef}>
+        <div className="person-modal-header">
+          <span className="person-modal-name">{name}</span>
+          <button className="person-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <ChartLegend items={personData.legendItems} className="person-legend" />
+        <div style={{ position: 'relative', height: 240 }}>
+          <Bar
+            key={`${name}-${tmMode}-${personData.labels.length}-${visibleW}`}
+            data={{ labels: personData.labels, datasets: personData.datasets }}
+            plugins={[inlinePlugin]}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              __personInline: true,
+              layout: { padding: { top: 12 } },
+              animation: false as const,
+              hover: { mode: null as any },
+              plugins: {
+                legend: { display: false },
+                datalabels: { display: false },
+                tooltip: { enabled: false },
+              },
+              datasets: {
+                bar: { categoryPercentage: tmMode === 'weekly' ? 0.85 : 0.6 },
+              },
+              scales: {
+                x: { stacked: true, grid: { display: false }, ticks: { font: { size: 12, weight: '500', family: 'Pretendard' } } },
+                y: {
+                  stacked: true,
+                  max: 1.0,
+                  title: { display: true, text: tmMode === 'monthly' ? 'M/M' : 'Weekly RTS', font: { size: 10, weight: '600', family: 'Pretendard' } },
+                  ticks: { font: { size: 12, weight: '500', family: 'Pretendard' } },
                 },
-                duration: 800,
-                easing: 'easeOutCubic' as const,
               },
-            },
-            plugins: {
-              legend: { display: false },
-              datalabels: { display: false },
-              tooltip: {
-                callbacks: {
-                  label: (ctx: any) => {
-                    const val = ctx.raw as number;
-                    if (val === 0) return '';
-                    return `${ctx.dataset.label}: ${val.toFixed(2)}`;
-                  },
-                },
-              },
-            },
-            datasets: {
-              bar: { categoryPercentage: 0.6 },
-            },
-            scales: {
-              x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
-              y: {
-                stacked: true,
-                max: 1,
-                grace: '20%',
-                title: { display: true, text: tmMode === 'monthly' ? 'M/M' : 'Weekly RTS', font: { size: 10 } },
-                ticks: { font: { size: 10 } },
-              },
-            },
-          } as any}
-        />
+            } as any}
+          />
+        </div>
       </div>
-      <ChartLegend items={personData.legendItems} className="person-legend" />
     </div>
   );
 };

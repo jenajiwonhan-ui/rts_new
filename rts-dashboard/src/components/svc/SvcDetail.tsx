@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import D, { YM, WM } from '../../data';
 import { DetailRecord } from '../../types';
 import { getWeeksPerMonth, getSvcLv2, getSvcLv3, getWeeksInRange } from '../../utils/aggregation';
@@ -62,7 +62,6 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
     const wpm = getWeeksPerMonth(filtered);
 
     if (tmMode === 'monthly') {
-      // Group by (member, product, lv2, lv3) and sum by month
       const groups: Record<string, FlatRow> = {};
       for (const d of filtered) {
         const lv2 = getSvcLv2(d);
@@ -78,7 +77,6 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
       }
       return Object.values(groups);
     } else {
-      // Weekly: each record becomes a flat row
       const groups: Record<string, FlatRow> = {};
       for (const d of filtered) {
         const lv2 = getSvcLv2(d);
@@ -133,15 +131,52 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
   }, [sortCol, sortDir]);
 
   const togglePerson = useCallback((key: string) => {
-    setExpandedPersons(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    setExpandedPersons(prev => prev.has(key) ? new Set() : new Set([key]));
   }, []);
 
-  const colWidths = [120, 120, 130, 160];
+  const [colWidths, setColWidths] = useState([120, 120, 150, 160]);
+  const resizingCol = useRef<number | null>(null);
+  const resizeStartX = useRef(0);
+  const resizeStartW = useRef(0);
+
+  const handleResizeStart = useCallback((colIdx: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingCol.current = colIdx;
+    resizeStartX.current = e.clientX;
+    resizeStartW.current = colWidths[colIdx];
+
+    const onMove = (ev: MouseEvent) => {
+      if (resizingCol.current === null) return;
+      const diff = ev.clientX - resizeStartX.current;
+      const newW = Math.max(60, resizeStartW.current + diff);
+      setColWidths(prev => {
+        const next = [...prev];
+        next[resizingCol.current!] = newW;
+        return next;
+      });
+    };
+    const onUp = () => {
+      resizingCol.current = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [colWidths]);
+
+  const totalFixedW = colWidths.reduce((s, w) => s + w, 0);
+  const tableWrapRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to rightmost (latest date) when tmMode changes
+  useEffect(() => {
+    const el = tableWrapRef.current;
+    if (el) {
+      requestAnimationFrame(() => {
+        el.scrollLeft = el.scrollWidth;
+      });
+    }
+  }, [tmMode]);
 
   const renderSortIcon = (col: string) => {
     if (sortCol !== col) return <span className="sort-btn">↕</span>;
@@ -154,119 +189,115 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
         <span className="sec-num">2</span> Details
       </div>
 
-      {/* Controls */}
-      <div className="gpd-filter-row">
-        <span className="frl">Period</span>
-        <PeriodSelect ymList={YM} value={fromYm} onChange={setFromYm} />
-        <span className="sep">~</span>
-        <PeriodSelect ymList={YM} value={toYm} onChange={setToYm} />
-        <span className="sep">|</span>
-        <span className="frl">Product</span>
-        <select
-          className="fi"
-          value={prodFilter}
-          onChange={e => setProdFilter(e.target.value)}
-        >
-          <option value="__all">All</option>
-          {products.map(p => (
-            <option key={p} value={p}>{p}</option>
-          ))}
-        </select>
-        <span className="sep">|</span>
-        <Toggle
-          options={[
-            { value: 'monthly', label: 'Monthly' },
-            { value: 'weekly', label: 'Weekly' },
-          ]}
-          value={tmMode}
-          onChange={v => setTmMode(v as 'monthly' | 'weekly')}
-        />
-        <div style={{ marginLeft: 'auto' }}>
-          <input
-            className="fi"
-            placeholder="Search member..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ minWidth: 180 }}
-          />
+      <div className="gpd-panel" style={{ padding: 20 }}>
+        {/* Controls */}
+        <div className="gpd-panel-header" style={{ padding: '0 0 12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span className="frl">Period</span>
+            <PeriodSelect ymList={YM} value={fromYm} onChange={setFromYm} />
+            <span className="sep">~</span>
+            <PeriodSelect ymList={YM} value={toYm} onChange={setToYm} />
+            <span className="frl" style={{ marginLeft: 6 }}>Product</span>
+            <select
+              className="fi"
+              value={prodFilter}
+              onChange={e => setProdFilter(e.target.value)}
+              style={{ maxWidth: 200 }}
+            >
+              <option value="__all">All</option>
+              {products.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+            <input
+              className="fi"
+              placeholder="Search member..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ minWidth: 150 }}
+            />
+          </div>
+          <div className="gpd-controls">
+            <Toggle
+              options={[
+                { value: 'monthly', label: 'Monthly' },
+                { value: 'weekly', label: 'Weekly' },
+              ]}
+              value={tmMode}
+              onChange={v => setTmMode(v as 'monthly' | 'weekly')}
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Table */}
-      <div className="tbl">
-        <div className="tbl-h">
-          <h3>Resource Details</h3>
-          <span className="cnt">{rows.length} rows</span>
-        </div>
-        <div className="tbl-s" style={{ overflowX: 'auto', maxHeight: 600 }}>
-          <table>
-            <thead>
-              <tr>
-                <th style={{ width: colWidths[0], minWidth: colWidths[0] }} onClick={() => handleSort('lv2')}>
-                  Lv.2 {renderSortIcon('lv2')}
-                </th>
-                <th style={{ width: colWidths[1], minWidth: colWidths[1] }} onClick={() => handleSort('lv3')}>
-                  Lv.3 {renderSortIcon('lv3')}
-                </th>
-                <th style={{ width: colWidths[2], minWidth: colWidths[2] }} onClick={() => handleSort('member')}>
-                  Member {renderSortIcon('member')}
-                </th>
-                <th style={{ width: colWidths[3], minWidth: colWidths[3] }} onClick={() => handleSort('product')}>
-                  Product {renderSortIcon('product')}
-                </th>
-                {timeKeys.map(k => (
-                  <th key={k} className="wk-val" style={{ minWidth: 46 }}>
-                    {tmMode === 'monthly' ? ymLabel(k) : (WM[k] || k)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sortedRows.map((row, i) => {
-                const rowKey = `${row.member}|${row.product}|${i}`;
-                return (
-                  <React.Fragment key={rowKey}>
-                    <tr>
-                      <td>{row.lv2}</td>
-                      <td>{row.lv3}</td>
-                      <td>
-                        <span
-                          className="tree-detail-link"
-                          onClick={() => togglePerson(rowKey)}
-                          style={{ marginRight: 6 }}
-                          title="Show detail chart"
-                        >
-                          <svg viewBox="0 0 16 14" width="16" height="14" fill="none" stroke={expandedPersons.has(rowKey) ? '#6c5ce7' : '#9498b0'} strokeWidth="1.5">
-                            <rect x="1" y="1" width="14" height="12" rx="2" />
-                            <polyline points="4,10 6,6 9,8 12,4" />
-                          </svg>
-                        </span>
-                        {row.member}
-                      </td>
-                      <td>{row.product}</td>
-                      {timeKeys.map(k => (
-                        <td key={k} className={`wk-val ${!row.times[k] ? 'zero' : ''}`}>
-                          {fmtVal(row.times[k])}
-                        </td>
-                      ))}
-                    </tr>
-                    {expandedPersons.has(rowKey) && (
-                      <tr>
-                        <td colSpan={4 + timeKeys.length} style={{ padding: 0 }}>
-                          <PersonInlineChart
-                            name={row.member}
-                            detail={detail}
-                            range={range}
-                            tmMode={tmMode}
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+        {/* Table: single scroll, sticky fixed cols */}
+        <div className="svc-table-wrap" ref={tableWrapRef} style={{ '--svc-fixed-w': `${totalFixedW}px` } as React.CSSProperties}>
+          {/* Header */}
+          <div className="svc-tbl-hdr">
+            <div className="svc-hdr-fixed" style={{ width: totalFixedW }}>
+              {['lv2', 'lv3', 'member', 'product'].map((col, ci) => (
+                <span
+                  key={col}
+                  className="svc-hdr-field"
+                  style={{ width: colWidths[ci] }}
+                  onClick={() => handleSort(col)}
+                >
+                  {col === 'lv2' ? 'Lv.2' : col === 'lv3' ? 'Lv.3' : col === 'member' ? 'Member' : 'Product'}
+                  {renderSortIcon(col)}
+                  <span className="svc-col-resize" onMouseDown={e => handleResizeStart(ci, e)} />
+                </span>
+              ))}
+            </div>
+            <div className="svc-time-spacer" />
+            {timeKeys.map(k => (
+              <div key={k} className="tree-tc tree-tc-hdr">
+                {tmMode === 'monthly' ? ymLabel(k) : (WM[k] || k)}
+              </div>
+            ))}
+          </div>
+
+          {/* Body */}
+          {sortedRows.map((row, i) => {
+            const rowKey = `${row.member}|${row.product}|${i}`;
+            return (
+              <React.Fragment key={rowKey}>
+                <div className={`svc-tbl-row${expandedPersons.has(rowKey) ? ' person-row-active' : ''}`}>
+                  <div className="svc-row-fixed" style={{ width: totalFixedW }}>
+                    <span className="svc-row-field" style={{ width: colWidths[0] }}>{row.lv2}</span>
+                    <span className="svc-row-field" style={{ width: colWidths[1] }}>{row.lv3}</span>
+                    <span className="svc-row-field svc-f-member" style={{ width: colWidths[2] }}>
+                      <span
+                        className="tree-detail-link"
+                        onClick={() => togglePerson(rowKey)}
+                        title="Show detail chart"
+                        style={{ marginRight: 6 }}
+                      >
+                        <svg viewBox="0 0 16 14" fill="none" stroke={expandedPersons.has(rowKey) ? '#6c5ce7' : '#9498b0'} strokeWidth="1.5">
+                          <rect x="1" y="1" width="14" height="12" rx="2" />
+                          <polyline points="4,10 6,6 9,8 12,4" />
+                        </svg>
+                      </span>
+                      {row.member}
+                    </span>
+                    <span className="svc-row-field svc-f-prod" style={{ width: colWidths[3] }}>{row.product}</span>
+                  </div>
+                  <div className="svc-time-spacer" />
+                  {timeKeys.map(k => (
+                    <div key={k} className="tree-row-tc">{fmtVal(row.times[k])}</div>
+                  ))}
+                </div>
+                {expandedPersons.has(rowKey) && (
+                  <PersonInlineChart
+                    name={row.member}
+                    detail={detail}
+                    range={range}
+                    tmMode={tmMode}
+                    onClose={() => togglePerson(rowKey)}
+                    scrollRef={tableWrapRef}
+                  />
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
       </div>
     </div>

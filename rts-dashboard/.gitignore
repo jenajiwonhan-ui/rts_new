@@ -24,5 +24,4 @@ dist-ssr
 *.sw?
 
 src/data/rawData.json
-../*.html
-../.claude
+.claude

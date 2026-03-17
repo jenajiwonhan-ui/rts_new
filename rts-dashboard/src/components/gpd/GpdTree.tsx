@@ -173,7 +173,7 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
     const personKey = `${parentKey}|${name}`;
     return (
       <React.Fragment key={personKey}>
-        <div className="tree-row tree-zebra">
+        <div className={`tree-row tree-zebra${expandedPersons.has(personKey) ? ' person-row-active' : ''}`}>
           <div className="tree-fixed">
             <div className="tree-row-name tree-member">
               <span

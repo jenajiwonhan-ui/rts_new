@@ -19,7 +19,7 @@ interface SvcViewProps {
   onLv2Change: (lv2: string | null, lvl: string) => void;
 }
 
-const GPD_CLR: Record<string, string> = { GPD1: '#73b7c5', GPD2: '#d59875', GPD3: '#b0b474' };
+const GPD_CLR: Record<string, string> = { GPD1: '#7CB8E0', GPD2: '#E0A8A0', GPD3: '#80C0A0' };
 
 const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
   const [tmMode, setTmMode] = useState<'monthly' | 'weekly'>('monthly');

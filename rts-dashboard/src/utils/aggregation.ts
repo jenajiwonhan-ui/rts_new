@@ -1,5 +1,5 @@
 import { DetailRecord, ColorInfo, TreeNode } from '../types';
-import { LV1_COLORS, LV1_ORDER, DEPT_PC, ORG_PC2, NPC, OOF, PC } from './colors';
+import { LV1_COLORS, LV1_ORDER, DEPT_PC, ORG_PC2, NPC, OOF, PC, GPD_PALETTES, isPubgProduct } from './colors';
 import rawData from '../data/rawData.json';
 
 const D = rawData as unknown as import('../types').RawData;
@@ -67,11 +67,32 @@ export function buildProdColors(detail: DetailRecord[]): ColorInfo {
 
   normal.sort((a, b) => (totals[b] || 0) - (totals[a] || 0));
 
+  // Assign colors from group palettes
+  const gpdGroups = D.gpd_groups || {};
+  const groupCounters: Record<string, number> = {};
   const colorMap: Record<string, string> = {};
-  let ci = 0;
+
   for (const p of normal) {
-    colorMap[p] = D.product_colors[p] || PC[ci % PC.length];
-    ci++;
+    let palette: string[] | undefined;
+
+    if (isPubgProduct(p)) {
+      palette = GPD_PALETTES.PUBG;
+      groupCounters.PUBG = (groupCounters.PUBG || 0);
+      colorMap[p] = palette[groupCounters.PUBG % palette.length];
+      groupCounters.PUBG++;
+    } else if (gpdGroups[p]) {
+      const grp = gpdGroups[p].gpd;
+      palette = GPD_PALETTES[grp];
+      if (palette) {
+        groupCounters[grp] = (groupCounters[grp] || 0);
+        colorMap[p] = palette[groupCounters[grp] % palette.length];
+        groupCounters[grp]++;
+      } else {
+        colorMap[p] = PC[Object.keys(colorMap).length % PC.length];
+      }
+    } else {
+      colorMap[p] = D.product_colors[p] || PC[Object.keys(colorMap).length % PC.length];
+    }
   }
   if (hasNP) colorMap['Non-product'] = NPC;
   if (hasOOF) colorMap['휴가(Out of Office)'] = OOF;

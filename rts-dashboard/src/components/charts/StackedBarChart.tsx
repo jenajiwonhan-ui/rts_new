@@ -51,7 +51,7 @@ const gpdTopLabelPlugin = {
       ctx.save();
 
       // ── Total label ──
-      ctx.font = '600 13px Pretendard, sans-serif';
+      ctx.font = '600 14px Pretendard, sans-serif';
       ctx.fillStyle = '#5f6280';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
@@ -63,19 +63,19 @@ const gpdTopLabelPlugin = {
         const diffText = ` ${diff >= 0 ? '+' : ''}${diff.toFixed(1)}`;
 
         {
-          ctx.font = '600 13px Pretendard, sans-serif';
+          ctx.font = '600 14px Pretendard, sans-serif';
           const totalW = ctx.measureText(totalText).width;
-          ctx.font = '400 11.5px Pretendard, sans-serif';
+          ctx.font = '400 12px Pretendard, sans-serif';
           const diffW = ctx.measureText(diffText).width;
           const fullW = totalW + diffW;
           const startX = lastMeta.data[bi].x - fullW / 2;
 
           ctx.textAlign = 'left';
-          ctx.font = '600 13px Pretendard, sans-serif';
+          ctx.font = '600 14px Pretendard, sans-serif';
           ctx.fillStyle = '#5f6280';
           ctx.fillText(totalText, startX, topY - 10);
 
-          ctx.font = '400 11.5px Pretendard, sans-serif';
+          ctx.font = '400 12px Pretendard, sans-serif';
           ctx.fillStyle = diff >= 0 ? '#4a8cb8' : '#c07060';
           ctx.fillText(diffText, startX + totalW, topY - 10);
         }
@@ -112,24 +112,24 @@ const gpdTopLabelPlugin = {
           const valText = v.toFixed(1);
           const diffText = ` ${segDiff >= 0 ? '+' : ''}${segDiff.toFixed(1)}`;
 
-          ctx.font = '600 11.5px Pretendard, sans-serif';
+          ctx.font = '600 14px Pretendard, sans-serif';
           const valW = ctx.measureText(valText).width;
-          ctx.font = '400 10px Pretendard, sans-serif';
+          ctx.font = '400 12px Pretendard, sans-serif';
           const diffW = ctx.measureText(diffText).width;
           const fullW = valW + diffW;
           const startX = bar.x - fullW / 2;
 
           ctx.textBaseline = 'middle';
           ctx.textAlign = 'left';
-          ctx.font = '600 11.5px Pretendard, sans-serif';
+          ctx.font = '600 14px Pretendard, sans-serif';
           ctx.fillStyle = valColor;
           ctx.fillText(valText, startX, cy);
 
-          ctx.font = '400 10px Pretendard, sans-serif';
+          ctx.font = '400 12px Pretendard, sans-serif';
           ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
           ctx.fillText(diffText, startX + valW, cy);
         } else {
-          ctx.font = '600 11.5px Pretendard, sans-serif';
+          ctx.font = '600 14px Pretendard, sans-serif';
           ctx.fillStyle = valColor;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
@@ -174,7 +174,7 @@ const segLabelsPlugin = {
         const isDark = hexLum(bgc) < 0.30;
 
         ctx.save();
-        ctx.font = '500 11px Pretendard, sans-serif';
+        ctx.font = '500 14px Pretendard, sans-serif';
         ctx.fillStyle = isDark ? 'rgba(255,255,255,0.88)' : 'rgba(58,61,74,0.70)';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -275,7 +275,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
             stacked: true,
             grid: { display: false },
             ticks: {
-              font: { size: isWeekly ? 12 : 14, family: 'Pretendard' },
+              font: { size: 12, weight: '500', family: 'Pretendard' },
               maxRotation: isWeekly ? 60 : 0,
             },
           },
@@ -285,16 +285,15 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
             title: {
               display: true,
               text: yTitle,
-              font: { size: 14, family: 'Pretendard' },
+              font: { size: 10, weight: '600', family: 'Pretendard' },
               padding: { top: 0, bottom: 10 },
             },
             ...(maxY !== undefined ? { max: maxY } : {}),
-            ticks: { font: { size: 12, family: 'Pretendard' } },
+            ticks: { font: { size: 12, weight: '500', family: 'Pretendard' } },
           },
         },
       };
     } else {
-      const fontSize = isWeekly ? 11 : 12.5;
       return {
         responsive: true,
         maintainAspectRatio: false,
@@ -306,7 +305,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
             anchor: 'end' as const,
             align: 'end' as const,
             color: '#7a7d98',
-            font: { size: fontSize, weight: 500, family: 'Pretendard' },
+            font: { size: 12, weight: '600', family: 'Pretendard' },
             formatter: (value: number, ctx: any) => {
               if (ctx.datasetIndex !== ctx.chart.data.datasets.length - 1) return null;
               let t = 0;
@@ -330,19 +329,16 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
             stacked: true,
             grid: { display: false },
             ticks: {
-              font: {
-                size: isWeekly ? (weekCount > 20 ? 9 : 11) : 13,
-                family: 'Pretendard',
-              },
+              font: { size: 12, weight: '500', family: 'Pretendard' },
               maxRotation: isWeekly ? 60 : 0,
             },
           },
           y: {
             stacked: true,
             grace: '15%',
-            title: { display: true, text: yTitle, font: { size: 13, family: 'Pretendard' } },
+            title: { display: true, text: yTitle, font: { size: 10, weight: '600', family: 'Pretendard' } },
             ...(maxY !== undefined ? { max: maxY } : {}),
-            ticks: { font: { size: 12, family: 'Pretendard' } },
+            ticks: { font: { size: 12, weight: '500', family: 'Pretendard' } },
           },
         },
       };

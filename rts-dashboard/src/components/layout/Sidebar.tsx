@@ -16,9 +16,9 @@ const SERVICES = [
 ];
 
 const OWNERS = [
-  { name: 'GPD1', color: '#73b7c5' },
-  { name: 'GPD2', color: '#d59875' },
-  { name: 'GPD3', color: '#b0b474' },
+  { name: 'GPD1', color: '#7CB8E0' },
+  { name: 'GPD2', color: '#E0A8A0' },
+  { name: 'GPD3', color: '#80C0A0' },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ activeOrg, onSelectOrg, onHome }) => (

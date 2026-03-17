@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState, useCallback } from 'react';
+import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 import { Bar } from 'react-chartjs-2';
 import D, { WM } from '../../data';
 import { getWeeksPerMonth, buildProdColors } from '../../utils/aggregation';
@@ -33,11 +33,21 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
     return () => window.removeEventListener('resize', measure);
   }, [measure]);
 
-  // Close on Escape key
+  // Close on Escape key or click outside
+  const panelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose?.(); };
+    const handleClick = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        onClose?.();
+      }
+    };
     document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
+    document.addEventListener('mousedown', handleClick);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      document.removeEventListener('mousedown', handleClick);
+    };
   }, [onClose]);
 
   const personData = useMemo(() => {
@@ -120,9 +130,9 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
           if (!bar) continue;
           const segH = Math.abs(bar.base - bar.y);
           const barW = bar.width ?? 30;
-          if (segH < 16 || barW < 30) continue;
+          if (segH < 12 || barW < 24) continue;
           const pct = (v / total) * 100;
-          if (pct < 10) continue;
+          if (pct < 8) continue;
 
           const bgc = (chart.data.datasets[di].backgroundColor as string) || '#888';
           const isDark = hexLum(bgc) < 0.25;
@@ -134,25 +144,25 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
             const valText = v.toFixed(1);
             const diffText = ` ${segDiff >= 0 ? '+' : ''}${segDiff.toFixed(1)}`;
 
-            ctx.font = '600 11.5px Pretendard, sans-serif';
+            ctx.font = '600 14px Pretendard, sans-serif';
             const valW = ctx.measureText(valText).width;
-            ctx.font = '400 10px Pretendard, sans-serif';
+            ctx.font = '400 12px Pretendard, sans-serif';
             const diffW = ctx.measureText(diffText).width;
             const startX = bar.x - (valW + diffW) / 2;
 
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'left';
-            ctx.font = '600 11.5px Pretendard, sans-serif';
+            ctx.font = '600 14px Pretendard, sans-serif';
             ctx.fillStyle = isDark ? 'rgba(255,255,255,0.92)' : 'rgba(58,61,74,0.75)';
             ctx.fillText(valText, startX, cy);
 
-            ctx.font = '400 10px Pretendard, sans-serif';
+            ctx.font = '400 12px Pretendard, sans-serif';
             ctx.fillStyle = segDiff >= 0
               ? (isDark ? '#90d0f0' : '#4a8cb8')
               : (isDark ? '#f0b8b0' : '#c07060');
             ctx.fillText(diffText, startX + valW, cy);
           } else {
-            ctx.font = '600 11.5px Pretendard, sans-serif';
+            ctx.font = '600 14px Pretendard, sans-serif';
             ctx.fillStyle = isDark ? 'rgba(255,255,255,0.92)' : 'rgba(58,61,74,0.75)';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -169,13 +179,13 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
 
   return (
     <div className="person-inline-wrap" style={{ width: visibleW }}>
-      <div className="person-inline-panel">
+      <div className="person-inline-panel" ref={panelRef}>
         <div className="person-modal-header">
           <span className="person-modal-name">{name}</span>
           <button className="person-modal-close" onClick={onClose}>✕</button>
         </div>
         <ChartLegend items={personData.legendItems} className="person-legend" />
-        <div style={{ position: 'relative', height: 320 }}>
+        <div style={{ position: 'relative', height: 240 }}>
           <Bar
             key={`${name}-${tmMode}-${personData.labels.length}-${visibleW}`}
             data={{ labels: personData.labels, datasets: personData.datasets }}
@@ -184,7 +194,7 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
               responsive: true,
               maintainAspectRatio: false,
               __personInline: true,
-              layout: { padding: { top: 32 } },
+              layout: { padding: { top: 12 } },
               animation: false as const,
               plugins: {
                 legend: { display: false },
@@ -203,12 +213,12 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
                 bar: { categoryPercentage: tmMode === 'weekly' ? 0.85 : 0.6 },
               },
               scales: {
-                x: { stacked: true, grid: { display: false }, ticks: { font: { size: 12, family: 'Pretendard' } } },
+                x: { stacked: true, grid: { display: false }, ticks: { font: { size: 12, weight: '500', family: 'Pretendard' } } },
                 y: {
                   stacked: true,
                   max: 1.0,
-                  title: { display: true, text: tmMode === 'monthly' ? 'M/M' : 'Weekly RTS', font: { size: 12, family: 'Pretendard' } },
-                  ticks: { font: { size: 11, family: 'Pretendard' } },
+                  title: { display: true, text: tmMode === 'monthly' ? 'M/M' : 'Weekly RTS', font: { size: 10, weight: '600', family: 'Pretendard' } },
+                  ticks: { font: { size: 12, weight: '500', family: 'Pretendard' } },
                 },
               },
             } as any}

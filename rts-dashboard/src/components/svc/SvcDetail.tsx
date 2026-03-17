@@ -165,7 +165,7 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
     document.addEventListener('mouseup', onUp);
   }, [colWidths]);
 
-  const totalFixedW = colWidths.reduce((s, w) => s + w, 0) + 16;
+  const totalFixedW = colWidths.reduce((s, w) => s + w, 0);
   const tableWrapRef = useRef<HTMLDivElement>(null);
 
   // Scroll to rightmost (latest date) when tmMode changes
@@ -260,7 +260,7 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
             const rowKey = `${row.member}|${row.product}|${i}`;
             return (
               <React.Fragment key={rowKey}>
-                <div className="svc-tbl-row">
+                <div className={`svc-tbl-row${expandedPersons.has(rowKey) ? ' person-row-active' : ''}`}>
                   <div className="svc-row-fixed" style={{ width: totalFixedW }}>
                     <span className="svc-row-field" style={{ width: colWidths[0] }}>{row.lv2}</span>
                     <span className="svc-row-field" style={{ width: colWidths[1] }}>{row.lv3}</span>

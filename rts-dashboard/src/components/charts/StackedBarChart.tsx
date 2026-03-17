@@ -13,6 +13,16 @@ ChartJS.register(
   Title, Tooltip, Legend, ChartDataLabels
 );
 
+/* ─── Custom tooltip positioner: center of hovered segment ─── */
+Tooltip.positioners.segmentCenter = function (elements, eventPosition) {
+  if (elements.length === 0) return false as any;
+  const el = elements[0].element as any;
+  return {
+    x: el.x,
+    y: (el.y + el.base) / 2,
+  };
+};
+
 /* ─── gpdTopLabel plugin ─── */
 const gpdTopLabelPlugin = {
   id: 'gpdTopLabel',
@@ -264,6 +274,8 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
           tooltip: {
             mode: 'nearest' as const,
             intersect: true,
+            position: 'segmentCenter' as any,
+            yAlign: 'center' as const,
             callbacks: { label: tooltipLabel },
           },
         },
@@ -318,6 +330,8 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
           tooltip: {
             mode: 'nearest' as const,
             intersect: true,
+            position: 'segmentCenter' as any,
+            yAlign: 'center' as const,
             callbacks: { label: tooltipLabel },
           },
         },

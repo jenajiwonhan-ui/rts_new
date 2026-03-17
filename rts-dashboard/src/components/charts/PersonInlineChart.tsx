@@ -200,11 +200,30 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
                 legend: { display: false },
                 datalabels: { display: false },
                 tooltip: {
+                  mode: 'nearest' as const,
+                  intersect: true,
+                  position: 'segmentCenter' as any,
+                  yAlign: 'center' as const,
                   callbacks: {
                     label: (ctx: any) => {
-                      const val = ctx.raw as number;
+                      const val = ctx.parsed?.y ?? ctx.raw;
                       if (val === 0) return '';
-                      return `${ctx.dataset.label}: ${val.toFixed(1)}`;
+                      let total = 0;
+                      for (const ds of ctx.chart.data.datasets) {
+                        total += (ds.data[ctx.dataIndex] as number) || 0;
+                      }
+                      const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+                      const diffSuffix = tmMode === 'weekly' ? ' w-w' : ' m-m';
+                      let diffStr = '';
+                      if (ctx.dataIndex > 0) {
+                        const prev = (ctx.dataset.data[ctx.dataIndex - 1] as number) || 0;
+                        const diff = val - prev;
+                        const sign = diff >= 0 ? '+' : '';
+                        diffStr = ` (${sign}${diff.toFixed(1)}${diffSuffix}, ${pct}%)`;
+                      } else {
+                        diffStr = ` (${pct}%)`;
+                      }
+                      return [ctx.dataset.label, `${val.toFixed(2)} MM${diffStr}`];
                     },
                   },
                 },

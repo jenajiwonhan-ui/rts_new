@@ -508,8 +508,14 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
 
   const chartKey = `${mode}-${timeMode}-${orgDepth}-${labels.length}`;
 
+  const handleMouseLeave = React.useCallback(() => {
+    if (onHighlightRef.current && hlRef.current != null) {
+      onHighlightRef.current(null);
+    }
+  }, []);
+
   return (
-    <div style={{ position: 'relative', height }}>
+    <div style={{ position: 'relative', height }} onMouseLeave={handleMouseLeave}>
       <Bar key={chartKey} data={data} options={options as any} />
     </div>
   );

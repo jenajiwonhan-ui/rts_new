@@ -42,14 +42,48 @@ const gpdTopLabelPlugin = {
     const customOpts = (chart.options as any).__custom || {};
     const orgDepth = customOpts.orgDepth || 'l';
     const isSvc = !!customOpts.isSvc;
+    const hl = customOpts.highlightedLabel || null;
+
+    // ── Pre-compute per-bar totals ──
+    const barTotals: number[] = [];
+    for (let bi = 0; bi < barCount; bi++) {
+      let total = 0;
+      for (let di = 0; di < dsCount; di++) {
+        total += (chart.data.datasets[di].data[bi] as number) || 0;
+      }
+      barTotals.push(total);
+    }
+
+    // ── Last bar is excluded (incomplete period) ──
+    const lastBar = barCount - 1;
+
+    // ── Pre-compute which datasets qualify for labels (must pass ALL bars except last) ──
+    const dsVisible: boolean[] = [];
+    for (let di = 0; di < dsCount; di++) {
+      if (hl && chart.data.datasets[di].label !== hl) { dsVisible.push(false); continue; }
+      const isHl = hl && chart.data.datasets[di].label === hl;
+      if (isHl) { dsVisible.push(true); continue; }
+      let allPass = true;
+      for (let bi = 0; bi < lastBar; bi++) {
+        const v = (chart.data.datasets[di].data[bi] as number) || 0;
+        if (v <= 0) { allPass = false; break; }
+        const bar = chart.getDatasetMeta(di).data[bi] as any;
+        if (!bar) { allPass = false; break; }
+        const segH = Math.abs(bar.base - bar.y);
+        if (segH < 4) { allPass = false; break; }
+        const total = barTotals[bi];
+        const pct = total > 0 ? (v / total) * 100 : 0;
+        if (pct < 10 || segH < 20) { allPass = false; break; }
+      }
+      dsVisible.push(allPass);
+    }
 
     for (let bi = 0; bi < barCount; bi++) {
       let topY = Infinity;
-      let total = 0;
+      const total = barTotals[bi];
       let prevTotal = 0;
       for (let di = 0; di < dsCount; di++) {
         const val = (chart.data.datasets[di].data[bi] as number) || 0;
-        total += val;
         const bar = chart.getDatasetMeta(di).data[bi] as any;
         if (val > 0 && bar && bar.y < topY) topY = bar.y;
         if (bi > 0) {
@@ -57,6 +91,7 @@ const gpdTopLabelPlugin = {
         }
       }
       if (total <= 0 || topY === Infinity) continue;
+      if (bi === lastBar && !hl) continue; // skip incomplete last period unless highlighted
 
       ctx.save();
 
@@ -66,7 +101,6 @@ const gpdTopLabelPlugin = {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
 
-      // Total + diff on single line
       if (bi > 0) {
         const diff = total - prevTotal;
         const totalText = total.toFixed(1);
@@ -93,27 +127,37 @@ const gpdTopLabelPlugin = {
         ctx.fillText(total.toFixed(1), lastMeta.data[bi].x, topY - 10);
       }
 
-      // ── Per-segment labels (always single line: value + diff) ──
+      // ── Per-segment labels ──
       for (let di = 0; di < dsCount; di++) {
+        if (!dsVisible[di]) continue;
         const v = (chart.data.datasets[di].data[bi] as number) || 0;
-        if (v <= 0) continue;
+        const isHl = hl && chart.data.datasets[di].label === hl;
         const bar = chart.getDatasetMeta(di).data[bi] as any;
         if (!bar) continue;
         const segH = Math.abs(bar.base - bar.y);
-        if (segH < 4) continue;
 
         const pct = (v / total) * 100;
-        if (orgDepth !== 'l' || isSvc) {
-          if (pct < 10 || segH < 20) continue;
-        }
 
         const bgc = (chart.data.datasets[di].backgroundColor as string) || '#888';
-        const isDark = hexLum(bgc) < 0.25;
-        const valColor = isDark ? 'rgba(255,255,255,0.92)' : 'rgba(58,61,74,0.75)';
-        const posColor = isDark ? '#90d0f0' : '#4a8cb8';
-        const negColor = isDark ? '#f0b8b0' : '#c07060';
+        const needChip = segH < 18;
+        const lum = hexLum(bgc);
+        const isDark = lum < 0.45;
+        const valColor = isDark ? '#ffffff' : '#2a2d3a';
+        const posColor = isDark ? '#a0e0ff' : '#2a6f9e';
+        const negColor = isDark ? '#ffb0a0' : '#b04030';
 
-        const cy = (bar.y + bar.base) / 2;
+        // For zero-height segments, compute y from scale + stack sum
+        let cy: number;
+        if (v <= 0) {
+          const yScale = chart.scales.y;
+          let cumSum = 0;
+          for (let d = 0; d <= di; d++) {
+            cumSum += (chart.data.datasets[d].data[bi] as number) || 0;
+          }
+          cy = yScale.getPixelForValue(cumSum) - 12;
+        } else {
+          cy = (bar.y + bar.base) / 2;
+        }
 
         if (bi > 0) {
           const prevV = (chart.data.datasets[di].data[bi - 1] as number) || 0;
@@ -129,21 +173,55 @@ const gpdTopLabelPlugin = {
           const fullW = valW + diffW;
           const startX = bar.x - fullW / 2;
 
-          ctx.textBaseline = 'middle';
-          ctx.textAlign = 'left';
-          ctx.font = '600 14px Pretendard, sans-serif';
-          ctx.fillStyle = valColor;
-          ctx.fillText(valText, startX, cy);
+          if (needChip) {
+            const chipH = 18, chipPad = 4, r = 3;
+            const cx = bar.x - (fullW + chipPad * 2) / 2;
+            const cyTop = cy - chipH / 2;
+            ctx.beginPath();
+            ctx.roundRect(cx, cyTop, fullW + chipPad * 2, chipH, r);
+            ctx.fillStyle = bgc;
+            ctx.fill();
+            const chipStartX = cx + chipPad;
 
-          ctx.font = '400 12px Pretendard, sans-serif';
-          ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
-          ctx.fillText(diffText, startX + valW, cy);
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'left';
+            ctx.font = '600 14px Pretendard, sans-serif';
+            ctx.fillStyle = valColor;
+            ctx.fillText(valText, chipStartX, cy);
+
+            ctx.font = '400 12px Pretendard, sans-serif';
+            ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
+            ctx.fillText(diffText, chipStartX + valW, cy);
+          } else {
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'left';
+            ctx.font = '600 14px Pretendard, sans-serif';
+            ctx.fillStyle = valColor;
+            ctx.fillText(valText, startX, cy);
+
+            ctx.font = '400 12px Pretendard, sans-serif';
+            ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
+            ctx.fillText(diffText, startX + valW, cy);
+          }
         } else {
           ctx.font = '600 14px Pretendard, sans-serif';
+          const valText = v.toFixed(1);
+
+          if (needChip) {
+            const tw = ctx.measureText(valText).width;
+            const chipH = 18, chipPad = 4, r = 3;
+            const cx = bar.x - (tw + chipPad * 2) / 2;
+            const cyTop = cy - chipH / 2;
+            ctx.beginPath();
+            ctx.roundRect(cx, cyTop, tw + chipPad * 2, chipH, r);
+            ctx.fillStyle = bgc;
+            ctx.fill();
+          }
+
           ctx.fillStyle = valColor;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(v.toFixed(1), bar.x, cy);
+          ctx.fillText(valText, bar.x, cy);
         }
       }
 
@@ -162,33 +240,85 @@ const segLabelsPlugin = {
 
     const ctx = chart.ctx;
     const dsCount = chart.data.datasets.length;
+    const hl = ((chart.options as any).__custom || {}).highlightedLabel || null;
+
+    const barCount2 = chart.getDatasetMeta(0)?.data.length || 0;
+    const lastBar2 = barCount2 - 1;
+
+    // Pre-compute which datasets qualify (must pass ALL bars except last)
+    const dsVis2: boolean[] = [];
+    for (let di = 0; di < dsCount; di++) {
+      if (hl && chart.data.datasets[di].label !== hl) { dsVis2.push(false); continue; }
+      const isHl = hl && chart.data.datasets[di].label === hl;
+      if (isHl) { dsVis2.push(true); continue; }
+      let allPass = true;
+      const meta = chart.getDatasetMeta(di);
+      for (let bi = 0; bi < lastBar2; bi++) {
+        const v = (chart.data.datasets[di].data[bi] as number) || 0;
+        if (v <= 0) { allPass = false; break; }
+        const bar = meta.data[bi] as any;
+        if (!bar) { allPass = false; break; }
+        const segH = Math.abs(bar.base - bar.y);
+        if (segH < 14) { allPass = false; break; }
+        let total = 0;
+        for (let d = 0; d < dsCount; d++) {
+          total += (chart.data.datasets[d].data[bi] as number) || 0;
+        }
+        const pct = total > 0 ? (v / total) * 100 : 0;
+        if (pct < 10) { allPass = false; break; }
+      }
+      dsVis2.push(allPass);
+    }
 
     for (let di = 0; di < dsCount; di++) {
+      if (!dsVis2[di]) continue;
+      const isHl = hl && chart.data.datasets[di].label === hl;
       const meta = chart.getDatasetMeta(di);
       for (let bi = 0; bi < meta.data.length; bi++) {
+        if (bi === lastBar2 && !isHl) continue; // skip incomplete last period unless highlighted
         const v = (chart.data.datasets[di].data[bi] as number) || 0;
-        if (v <= 0) continue;
         const bar = meta.data[bi] as any;
         if (!bar) continue;
         const segH = Math.abs(bar.base - bar.y);
-        if (segH < 14) continue;
 
         let total = 0;
         for (let d = 0; d < dsCount; d++) {
           total += (chart.data.datasets[d].data[bi] as number) || 0;
         }
         const pct = total > 0 ? (v / total) * 100 : 0;
-        if (pct < 10) continue;
 
         const bgc = (chart.data.datasets[di].backgroundColor as string) || '#888';
-        const isDark = hexLum(bgc) < 0.30;
+        const needChip = segH < 18;
+        const isDark = hexLum(bgc) < 0.45;
 
         ctx.save();
         ctx.font = '500 14px Pretendard, sans-serif';
-        ctx.fillStyle = isDark ? 'rgba(255,255,255,0.88)' : 'rgba(58,61,74,0.70)';
+        const valText = v.toFixed(1);
+        let cy: number;
+        if (v <= 0) {
+          const yScale = chart.scales.y;
+          let cumSum = 0;
+          for (let d = 0; d <= di; d++) {
+            cumSum += (chart.data.datasets[d].data[bi] as number) || 0;
+          }
+          cy = yScale.getPixelForValue(cumSum) - 12;
+        } else {
+          cy = (bar.y + bar.base) / 2;
+        }
+
+        if (needChip) {
+          const tw = ctx.measureText(valText).width;
+          const chipH = 18, chipPad = 4, r = 3;
+          ctx.beginPath();
+          ctx.roundRect(bar.x - (tw + chipPad * 2) / 2, cy - chipH / 2, tw + chipPad * 2, chipH, r);
+          ctx.fillStyle = bgc;
+          ctx.fill();
+        }
+
+        ctx.fillStyle = isDark ? '#ffffff' : '#2a2d3a';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(v.toFixed(1), bar.x, (bar.y + bar.base) / 2);
+        ctx.fillText(valText, bar.x, cy);
         ctx.restore();
       }
     }
@@ -214,51 +344,74 @@ interface StackedBarChartProps {
   maxY?: number;
   orgDepth?: string;
   isSvc?: boolean;
+  highlightedLabel?: string | null;
+  onHighlight?: (label: string | null) => void;
 }
+
+/* ─── helper: apply highlight opacity to a hex color ─── */
+function applyAlpha(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+const DIM_ALPHA = 0.15;
 
 const StackedBarChart: React.FC<StackedBarChartProps> = ({
   labels, datasets, yTitle = 'M/M', height = 350,
   mode = 'svcGpd', timeMode = 'monthly', maxY,
-  orgDepth = 'l', isSvc = false,
+  orgDepth = 'l', isSvc = false, highlightedLabel, onHighlight,
 }) => {
-  const data = useMemo(() => ({ labels, datasets }), [labels, datasets]);
+  const [interacted, setInteracted] = React.useState(false);
+
+  /* ─── data includes highlight colors so react-chartjs-2 stays in sync ─── */
+  const data = useMemo(() => {
+    if (highlightedLabel == null) return { labels, datasets };
+    return {
+      labels,
+      datasets: datasets.map(ds => ({
+        ...ds,
+        backgroundColor: ds.label === highlightedLabel
+          ? ds.backgroundColor
+          : applyAlpha(ds.backgroundColor, DIM_ALPHA),
+      })),
+    };
+  }, [labels, datasets, highlightedLabel]);
 
   const isSvcGpd = mode === 'svcGpd';
   const isWeekly = timeMode === 'weekly';
   const weekCount = labels.length;
 
+  /* ─── chart-level hover → set highlight via parent state ─── */
+  const onHighlightRef = React.useRef(onHighlight);
+  onHighlightRef.current = onHighlight;
+  const hlRef = React.useRef(highlightedLabel);
+  hlRef.current = highlightedLabel;
+
+  const handleHover = React.useCallback((_evt: any, elements: any[], chart: any) => {
+    if (!onHighlightRef.current) return;
+    let label: string | null = null;
+    if (elements.length > 0) {
+      const dsIndex = elements[0].datasetIndex;
+      label = chart.data.datasets[dsIndex]?.label || null;
+    }
+    if (label === hlRef.current) return;
+    if (!interacted) setInteracted(true);
+    onHighlightRef.current(label);
+  }, [interacted]);
+
   const options = useMemo(() => {
-    const diffSuffix = isWeekly ? ' w-w' : ' m-m';
-
-    const tooltipLabel = (ctx: any) => {
-      const val = ctx.parsed?.y ?? ctx.raw;
-      if (val === 0) return '';
-      let total = 0;
-      for (const ds of ctx.chart.data.datasets) {
-        total += (ds.data[ctx.dataIndex] as number) || 0;
-      }
-      const pct = total > 0 ? Math.round((val / total) * 100) : 0;
-
-      let diffStr = '';
-      if (ctx.dataIndex > 0) {
-        const prev = (ctx.dataset.data[ctx.dataIndex - 1] as number) || 0;
-        const diff = val - prev;
-        const sign = diff >= 0 ? '+' : '';
-        diffStr = ` (${sign}${diff.toFixed(1)}${diffSuffix}, ${pct}%)`;
-      } else {
-        diffStr = ` (${pct}%)`;
-      }
-
-      return [ctx.dataset.label, `${val.toFixed(2)} MM${diffStr}`];
-    };
-
-    const animationOpts = {
-      duration: 800,
-      easing: 'easeOutCubic' as const,
-    };
+    const animationOpts = { duration: 0 };
     const transitionOpts = {
-      active: { animation: { duration: 200 } },
+      active: { animation: { duration: 0 } },
       resize: { animation: { duration: 0 } },
+    };
+
+    const commonHover = {
+      mode: 'nearest' as const,
+      intersect: true,
     };
 
     if (isSvcGpd) {
@@ -266,18 +419,15 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
         responsive: true,
         maintainAspectRatio: false,
         layout: { padding: { bottom: 12 } },
-        __custom: { orgDepth, isSvc },
+        __custom: { orgDepth, isSvc, highlightedLabel },
         animation: animationOpts,
+        transitions: transitionOpts,
+        onHover: handleHover,
+        hover: commonHover,
         plugins: {
           legend: { display: false },
           datalabels: { display: false } as any,
-          tooltip: {
-            mode: 'nearest' as const,
-            intersect: true,
-            position: 'segmentCenter' as any,
-            yAlign: 'center' as const,
-            callbacks: { label: tooltipLabel },
-          },
+          tooltip: { enabled: false },
         },
         datasets: {
           bar: { categoryPercentage: isWeekly ? 0.85 : 0.6 },
@@ -310,6 +460,9 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
         responsive: true,
         maintainAspectRatio: false,
         animation: animationOpts,
+        __custom: { highlightedLabel },
+        onHover: handleHover,
+        hover: commonHover,
         plugins: {
           legend: { display: false },
           datalabels: {
@@ -327,13 +480,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
               return t > 0 ? t.toFixed(1) : null;
             },
           } as any,
-          tooltip: {
-            mode: 'nearest' as const,
-            intersect: true,
-            position: 'segmentCenter' as any,
-            yAlign: 'center' as const,
-            callbacks: { label: tooltipLabel },
-          },
+          tooltip: { enabled: false },
         },
         datasets: {
           bar: { categoryPercentage: isWeekly ? 0.85 : 0.6 },
@@ -357,7 +504,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
         },
       };
     }
-  }, [yTitle, isSvcGpd, isWeekly, maxY, orgDepth, isSvc, weekCount]);
+  }, [yTitle, isSvcGpd, isWeekly, maxY, orgDepth, isSvc, weekCount, highlightedLabel, handleHover, interacted]);
 
   const chartKey = `${mode}-${timeMode}-${orgDepth}-${labels.length}`;
 

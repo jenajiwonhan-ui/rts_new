@@ -23,6 +23,7 @@ const GPD_CLR: Record<string, string> = { GPD1: '#7CB8E0', GPD2: '#E0A8A0', GPD3
 
 const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
   const [tmMode, setTmMode] = useState<'monthly' | 'weekly'>('monthly');
+  const [hlLabel, setHlLabel] = useState<string | null>(null);
 
   // Filter detail for this service org
   const detail = useMemo(() => {
@@ -158,7 +159,7 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
                 />
               </div>
             </div>
-            <ChartLegend items={barData.legendItems} className="gpd-legend" />
+            <ChartLegend items={barData.legendItems} className="gpd-legend" highlightedLabel={hlLabel} onHighlight={setHlLabel} />
             <div style={{ padding: '0 16px' }}>
               <div style={{ position: 'relative', height: 380 }}>
                 <StackedBarChart
@@ -169,6 +170,8 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
                   mode="svcGpd"
                   timeMode={tmMode}
                   isSvc={true}
+                  highlightedLabel={hlLabel}
+                  onHighlight={setHlLabel}
                 />
               </div>
             </div>

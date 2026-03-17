@@ -21,6 +21,7 @@ interface GpdViewProps {
 const GpdView: React.FC<GpdViewProps> = ({ org, product }) => {
   const [tmMode, setTmMode] = useState<'monthly' | 'weekly'>('monthly');
   const [orgDepth, setOrgDepth] = useState<'l' | 'd'>('l');
+  const [hlLabel, setHlLabel] = useState<string | null>(null);
 
   const cfg = D.gpd_config[org];
   const productNames = Object.values(cfg.products);
@@ -163,7 +164,7 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product }) => {
                 />
               </div>
             </div>
-            <ChartLegend items={barData.legendItems} className="gpd-legend" />
+            <ChartLegend items={barData.legendItems} className="gpd-legend" highlightedLabel={hlLabel} onHighlight={setHlLabel} />
             <div style={{ padding: '0 16px' }}>
               <div style={{ position: 'relative', height: 380 }}>
                 <StackedBarChart
@@ -174,6 +175,8 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product }) => {
                   mode="svcGpd"
                   timeMode={tmMode}
                   orgDepth={orgDepth}
+                  highlightedLabel={hlLabel}
+                  onHighlight={setHlLabel}
                 />
               </div>
             </div>

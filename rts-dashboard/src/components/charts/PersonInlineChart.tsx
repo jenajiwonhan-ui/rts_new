@@ -135,7 +135,10 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
           if (pct < 8) continue;
 
           const bgc = (chart.data.datasets[di].backgroundColor as string) || '#888';
-          const isDark = hexLum(bgc) < 0.25;
+          const isDark = hexLum(bgc) < 0.45;
+          const valColor = isDark ? '#ffffff' : '#2a2d3a';
+          const posColor = isDark ? '#a0e0ff' : '#2a6f9e';
+          const negColor = isDark ? '#ffb0a0' : '#b04030';
           const cy = (bar.y + bar.base) / 2;
 
           if (bi > 0) {
@@ -153,17 +156,15 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'left';
             ctx.font = '600 14px Pretendard, sans-serif';
-            ctx.fillStyle = isDark ? 'rgba(255,255,255,0.92)' : 'rgba(58,61,74,0.75)';
+            ctx.fillStyle = valColor;
             ctx.fillText(valText, startX, cy);
 
             ctx.font = '400 12px Pretendard, sans-serif';
-            ctx.fillStyle = segDiff >= 0
-              ? (isDark ? '#90d0f0' : '#4a8cb8')
-              : (isDark ? '#f0b8b0' : '#c07060');
+            ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
             ctx.fillText(diffText, startX + valW, cy);
           } else {
             ctx.font = '600 14px Pretendard, sans-serif';
-            ctx.fillStyle = isDark ? 'rgba(255,255,255,0.92)' : 'rgba(58,61,74,0.75)';
+            ctx.fillStyle = valColor;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(v.toFixed(1), bar.x, cy);
@@ -196,37 +197,11 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
               __personInline: true,
               layout: { padding: { top: 12 } },
               animation: false as const,
+              hover: { mode: null as any },
               plugins: {
                 legend: { display: false },
                 datalabels: { display: false },
-                tooltip: {
-                  mode: 'nearest' as const,
-                  intersect: true,
-                  position: 'segmentCenter' as any,
-                  yAlign: 'center' as const,
-                  callbacks: {
-                    label: (ctx: any) => {
-                      const val = ctx.parsed?.y ?? ctx.raw;
-                      if (val === 0) return '';
-                      let total = 0;
-                      for (const ds of ctx.chart.data.datasets) {
-                        total += (ds.data[ctx.dataIndex] as number) || 0;
-                      }
-                      const pct = total > 0 ? Math.round((val / total) * 100) : 0;
-                      const diffSuffix = tmMode === 'weekly' ? ' w-w' : ' m-m';
-                      let diffStr = '';
-                      if (ctx.dataIndex > 0) {
-                        const prev = (ctx.dataset.data[ctx.dataIndex - 1] as number) || 0;
-                        const diff = val - prev;
-                        const sign = diff >= 0 ? '+' : '';
-                        diffStr = ` (${sign}${diff.toFixed(1)}${diffSuffix}, ${pct}%)`;
-                      } else {
-                        diffStr = ` (${pct}%)`;
-                      }
-                      return [ctx.dataset.label, `${val.toFixed(2)} MM${diffStr}`];
-                    },
-                  },
-                },
+                tooltip: { enabled: false },
               },
               datasets: {
                 bar: { categoryPercentage: tmMode === 'weekly' ? 0.85 : 0.6 },

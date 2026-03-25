@@ -93,7 +93,7 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig }) => {
       data: sorted.map(e => e[1]),
       colors: sorted.map(e => LV1_COLORS[e[0]] || '#ccc'),
       pieCM: Object.fromEntries(sorted.map(e => [e[0], LV1_COLORS[e[0]] || '#ccc'])),
-      title: `${ymLabel(prevYm)} Mix`,
+      title: `${ymLabel(prevYm)} Snapshot`,
     };
   }, [rangeDetail, mRange]);
 
@@ -142,7 +142,37 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig }) => {
       <div className="sec">
         <div className="sec-title"><span className="sec-num">1</span>Overview</div>
         <div className="gpd-panels">
-          {/* Panel 1: 3M Trend */}
+          {/* Panel 1: Mix + Ranking */}
+          <div className="gpd-panel">
+            <div className="gpd-panel-header">
+              <h3>{pieData.title}</h3>
+            </div>
+            <div className="gpd-mix-row">
+              <div className="gpd-mix-rank">
+                {rankingData.map(item => (
+                  <div key={item.name} className="div-card" style={{ borderLeftColor: item.color }}>
+                    <div className="div-card-title">
+                      <span className="div-card-rank">{item.rank}. {item.name}</span>
+                      <span className="div-card-mm" style={{ color: item.darkColor }}>{item.total.toFixed(1)} M/M</span>
+                    </div>
+                    {item.detail && (
+                      <div className="div-card-detail">{item.detail}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="gpd-mix-pie">
+                <DoughnutChart
+                  labels={pieData.labels}
+                  data={pieData.data}
+                  colors={pieData.colors}
+                  variant="gpdMix"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Panel 2: 3M Trend */}
           <div className="gpd-panel">
             <div className="gpd-panel-header">
               <h3>3M Trend</h3>
@@ -180,36 +210,6 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig }) => {
                   highlightedLabel={hlLabel}
                   onHighlight={setHlLabel}
                 />
-              </div>
-            </div>
-          </div>
-
-          {/* Panel 2: Mix + Ranking */}
-          <div className="gpd-panel">
-            <div className="gpd-panel-header">
-              <h3>{pieData.title}</h3>
-            </div>
-            <div className="gpd-mix-row">
-              <div className="gpd-mix-pie">
-                <DoughnutChart
-                  labels={pieData.labels}
-                  data={pieData.data}
-                  colors={pieData.colors}
-                  variant="gpdMix"
-                />
-              </div>
-              <div className="gpd-mix-rank">
-                {rankingData.map(item => (
-                  <div key={item.name} className="div-card" style={{ borderLeftColor: item.color }}>
-                    <div className="div-card-title">
-                      <span className="div-card-rank">{item.rank}. {item.name}</span>
-                      <span className="div-card-mm" style={{ color: item.darkColor }}>{item.total.toFixed(1)} M/M</span>
-                    </div>
-                    {item.detail && (
-                      <div className="div-card-detail">{item.detail}</div>
-                    )}
-                  </div>
-                ))}
               </div>
             </div>
           </div>

@@ -73,8 +73,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const gpdGroups = useMemo(() => {
     const map: Record<string, { gpd: string; short: string }> = {};
     for (const p of products) {
-      if (p.product_owner && p.alias) {
-        map[p.name] = { gpd: p.product_owner, short: p.alias };
+      if (p.product_owner) {
+        map[p.name] = { gpd: p.product_owner, short: p.alias || p.name };
       }
     }
     return map;

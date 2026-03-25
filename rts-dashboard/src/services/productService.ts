@@ -39,8 +39,8 @@ export function buildProductColors(products: Product[]): Record<string, string> 
 export function buildGpdGroups(products: Product[]): Record<string, { gpd: string; short: string }> {
   const map: Record<string, { gpd: string; short: string }> = {};
   for (const p of products) {
-    if (p.product_owner && p.alias) {
-      map[p.name] = { gpd: p.product_owner, short: p.alias };
+    if (p.product_owner) {
+      map[p.name] = { gpd: p.product_owner, short: p.alias || p.name };
     }
   }
   return map;

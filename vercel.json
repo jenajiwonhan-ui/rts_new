@@ -1,0 +1,5 @@
+{
+  "buildCommand": "cd rts-dashboard && npm install && npm run build",
+  "outputDirectory": "rts-dashboard/dist",
+  "installCommand": "echo skip"
+}

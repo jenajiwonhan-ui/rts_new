@@ -1,5 +1,9 @@
 {
   "buildCommand": "cd rts-dashboard && npm install && npm run build",
   "outputDirectory": "rts-dashboard/dist",
-  "installCommand": "echo skip"
+  "installCommand": "echo skip",
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 }

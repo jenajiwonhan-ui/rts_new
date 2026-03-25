@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import D, { YM, WM } from '../../data';
+import { useData } from '../../contexts/DataContext';
 import { DetailRecord } from '../../types';
 import {
   getWeeksPerMonth, buildOrgColors,
@@ -16,20 +16,22 @@ import GpdTree from './GpdTree';
 interface GpdViewProps {
   org: string;
   product: string | null;
+  gpdConfig: Record<string, { products: Record<string, string> }>;
 }
 
-const GpdView: React.FC<GpdViewProps> = ({ org, product }) => {
+const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig }) => {
+  const { detail: allDetail, ymList: YM, weekMondays: WM } = useData();
   const [tmMode, setTmMode] = useState<'monthly' | 'weekly'>('monthly');
   const [orgDepth, setOrgDepth] = useState<'l' | 'd'>('l');
   const [hlLabel, setHlLabel] = useState<string | null>(null);
 
-  const cfg = D.gpd_config[org];
-  const productNames = Object.values(cfg.products);
+  const cfg = gpdConfig[org];
+  const productNames = cfg ? Object.values(cfg.products) : [];
 
   const detail = useMemo(() => {
     const prods = product ? new Set([product]) : new Set(productNames);
-    return D.detail.filter(d => prods.has(d.p));
-  }, [product, productNames]);
+    return allDetail.filter(d => prods.has(d.p) && d.lv1 !== 'Other');
+  }, [product, productNames, allDetail]);
 
   const mRange = useMemo(() => getLastNMonths(YM, 4), []);
   const rangeDetail = useMemo(() => detail.filter(d => mRange.includes(d.ym)), [detail, mRange]);
@@ -54,7 +56,7 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product }) => {
       }));
       return { labels, datasets, legendItems: orgColors.allItems.map(k => ({ label: k, color: orgColors.colorMap[k] })) };
     } else {
-      const weeks = getWeeksInRange(D.detail, mRange).sort();
+      const weeks = getWeeksInRange(allDetail, mRange).sort();
       const labels = weeks.map(w => WM[w] || w);
       const orgTimes: Record<string, Record<string, number>> = {};
       for (const d of rangeDetail) {
@@ -83,7 +85,7 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product }) => {
     const orgTotals: Record<string, number> = {};
     for (const d of prevDetail) {
       const w = prevWpm[d.ym] || 1;
-      orgTotals[d.b] = (orgTotals[d.b] || 0) + d.tot / w;
+      orgTotals[d.lv1] = (orgTotals[d.lv1] || 0) + d.tot / w;
     }
     const sorted = Object.entries(orgTotals).sort((a, b) => b[1] - a[1]);
     return {
@@ -104,12 +106,12 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product }) => {
 
     const lv1Data: Record<string, { total: number; subs: Record<string, { total: number }> }> = {};
     for (const d of prevDetail) {
-      if (!lv1Data[d.b]) lv1Data[d.b] = { total: 0, subs: {} };
-      lv1Data[d.b].total += d.tot;
-      const lv2 = d.d !== '-' ? d.d : (d.t !== '-' ? d.t : '-');
+      if (!lv1Data[d.lv1]) lv1Data[d.lv1] = { total: 0, subs: {} };
+      lv1Data[d.lv1].total += d.tot;
+      const lv2 = d.lv2;
       if (lv2 !== '-') {
-        if (!lv1Data[d.b].subs[lv2]) lv1Data[d.b].subs[lv2] = { total: 0 };
-        lv1Data[d.b].subs[lv2].total += d.tot;
+        if (!lv1Data[d.lv1].subs[lv2]) lv1Data[d.lv1].subs[lv2] = { total: 0 };
+        lv1Data[d.lv1].subs[lv2].total += d.tot;
       }
     }
 

@@ -8,6 +8,7 @@ export const LV1_COLORS: Record<string, string> = {
 };
 
 export const LV1_ORDER = ['EPS', 'WPS', 'NAPS', 'PSM', 'GCD'];
+export const LV1_HIDDEN = new Set(['Other']);
 
 // Department palette
 export const DEPT_PC = [
@@ -51,7 +52,7 @@ export const GPD_PALETTES: Record<string, string[]> = {
     '#80C0A0', '#A8C878', '#68A8A0', '#B8D090', '#78B0B8',
     '#90B870', '#68C0B0', '#A0B080', '#88D0A0', '#70A088',
   ],
-  PUBG: [ // wheat → camel → khaki → taupe (earthy spread)
+  'IP Franchise': [ // wheat → camel → khaki → taupe (earthy spread)
     '#C8B890', '#A89878', '#D8C8A0', '#988868', '#B8A880',
     '#C0A070', '#B0B098', '#C8A880', '#A8A088', '#D0B890',
   ],

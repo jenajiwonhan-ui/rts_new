@@ -14,7 +14,7 @@ ChartJS.register(
 );
 
 /* ─── Custom tooltip positioner: center of hovered segment ─── */
-Tooltip.positioners.segmentCenter = function (elements, eventPosition) {
+(Tooltip.positioners as any).segmentCenter = function (elements: any, eventPosition: any) {
   if (elements.length === 0) return false as any;
   const el = elements[0].element as any;
   return {
@@ -27,7 +27,7 @@ Tooltip.positioners.segmentCenter = function (elements, eventPosition) {
 const gpdTopLabelPlugin = {
   id: 'gpdTopLabel',
   afterDatasetsDraw(chart: ChartJS) {
-    if (chart.config.type !== 'bar') return;
+    if ((chart.config as any).type !== 'bar') return;
     const dlOpts = chart.options?.plugins?.datalabels;
     if (!dlOpts || (dlOpts as any).display !== false) return;
     if ((chart.options as any).__personInline) return;
@@ -234,7 +234,7 @@ const gpdTopLabelPlugin = {
 const segLabelsPlugin = {
   id: 'segLabels',
   afterDatasetsDraw(chart: ChartJS) {
-    if (chart.config.type !== 'bar') return;
+    if ((chart.config as any).type !== 'bar') return;
     const dlOpts = chart.options?.plugins?.datalabels;
     if (dlOpts && (dlOpts as any).display === false) return;
 

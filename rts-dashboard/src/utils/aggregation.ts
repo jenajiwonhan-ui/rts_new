@@ -1,8 +1,5 @@
 import { DetailRecord, ColorInfo, TreeNode } from '../types';
 import { LV1_COLORS, LV1_ORDER, DEPT_PC, ORG_PC2, NPC, OOF, PC, GPD_PALETTES, isPubgProduct } from './colors';
-import rawData from '../data/rawData.json';
-
-const D = rawData as unknown as import('../types').RawData;
 
 /** Count distinct weeks per month across detail records */
 export function getWeeksPerMonth(detail: DetailRecord[]): Record<string, number> {
@@ -49,7 +46,11 @@ export function addProdTimes(
 }
 
 /** Build product color info from detail records */
-export function buildProdColors(detail: DetailRecord[]): ColorInfo {
+export function buildProdColors(
+  detail: DetailRecord[],
+  gpdGroups?: Record<string, { gpd: string; short: string }>,
+  productColors?: Record<string, string>,
+): ColorInfo {
   const totals: Record<string, number> = {};
   for (const d of detail) {
     totals[d.p] = (totals[d.p] || 0) + d.tot;
@@ -68,7 +69,7 @@ export function buildProdColors(detail: DetailRecord[]): ColorInfo {
   normal.sort((a, b) => (totals[b] || 0) - (totals[a] || 0));
 
   // Assign colors from group palettes
-  const gpdGroups = D.gpd_groups || {};
+  const groups = gpdGroups || {};
   const groupCounters: Record<string, number> = {};
   const colorMap: Record<string, string> = {};
 
@@ -76,12 +77,12 @@ export function buildProdColors(detail: DetailRecord[]): ColorInfo {
     let palette: string[] | undefined;
 
     if (isPubgProduct(p)) {
-      palette = GPD_PALETTES.PUBG;
-      groupCounters.PUBG = (groupCounters.PUBG || 0);
-      colorMap[p] = palette[groupCounters.PUBG % palette.length];
-      groupCounters.PUBG++;
-    } else if (gpdGroups[p]) {
-      const grp = gpdGroups[p].gpd;
+      palette = GPD_PALETTES['IP Franchise'];
+      groupCounters['IP Franchise'] = (groupCounters['IP Franchise'] || 0);
+      colorMap[p] = palette[groupCounters['IP Franchise'] % palette.length];
+      groupCounters['IP Franchise']++;
+    } else if (groups[p]) {
+      const grp = groups[p].gpd;
       palette = GPD_PALETTES[grp];
       if (palette) {
         groupCounters[grp] = (groupCounters[grp] || 0);
@@ -91,7 +92,7 @@ export function buildProdColors(detail: DetailRecord[]): ColorInfo {
         colorMap[p] = PC[Object.keys(colorMap).length % PC.length];
       }
     } else {
-      colorMap[p] = D.product_colors[p] || PC[Object.keys(colorMap).length % PC.length];
+      colorMap[p] = productColors?.[p] || PC[Object.keys(colorMap).length % PC.length];
     }
   }
   if (hasNP) colorMap['Non-product'] = NPC;
@@ -109,16 +110,16 @@ export function buildOrgColors(detail: DetailRecord[], orgDepth: string): ColorI
   const totals: Record<string, number> = {};
 
   const getKey = (d: DetailRecord): string => {
-    if (orgDepth === 'l') return d.b;
+    if (orgDepth === 'l') return d.lv1;
     if (orgDepth === 'd') {
-      if (d.d === '-') return `${d.b} (Direct)`;
-      return `${d.b} / ${d.d}`;
+      if (d.lv2 === '-') return `${d.lv1} (Direct)`;
+      return `${d.lv1} / ${d.lv2}`;
     }
     // orgDepth === 't'
-    if (d.d === '-' && d.t === '-') return `${d.b} (Direct)`;
-    if (d.d === '-') return `${d.b} / ${d.t}`;
-    if (d.t === '-') return `${d.d} (Direct)`;
-    return `${d.d} / ${d.t}`;
+    if (d.lv2 === '-' && d.lv3 === '-') return `${d.lv1} (Direct)`;
+    if (d.lv2 === '-') return `${d.lv1} / ${d.lv3}`;
+    if (d.lv3 === '-') return `${d.lv2} (Direct)`;
+    return `${d.lv2} / ${d.lv3}`;
   };
 
   for (const d of detail) {
@@ -173,30 +174,21 @@ export function buildOrgColors(detail: DetailRecord[], orgDepth: string): ColorI
 
 /** Get org key from a detail record based on depth */
 export function getOrgKey(d: DetailRecord, orgDepth: string): string {
-  if (orgDepth === 'l') return d.b;
+  if (orgDepth === 'l') return d.lv1;
   if (orgDepth === 'd') {
-    if (d.d === '-') return `${d.b} (Direct)`;
-    return `${d.b} / ${d.d}`;
+    if (d.lv2 === '-') return `${d.lv1} (Direct)`;
+    return `${d.lv1} / ${d.lv2}`;
   }
-  if (d.d === '-' && d.t === '-') return `${d.b} (Direct)`;
-  if (d.d === '-') return `${d.b} / ${d.t}`;
-  if (d.t === '-') return `${d.d} (Direct)`;
-  return `${d.d} / ${d.t}`;
+  if (d.lv2 === '-' && d.lv3 === '-') return `${d.lv1} (Direct)`;
+  if (d.lv2 === '-') return `${d.lv1} / ${d.lv3}`;
+  if (d.lv3 === '-') return `${d.lv2} (Direct)`;
+  return `${d.lv2} / ${d.lv3}`;
 }
 
 /** Get Lv2/Lv3 levels from a detail record for tree building */
 export function getLevels(d: DetailRecord): { lv2: string; lv3: string } {
-  if (d.d !== '-') {
-    return {
-      lv2: d.d,
-      lv3: d.t === '-' ? (d.pt !== '-' ? d.pt : '-') : d.t,
-    };
-  }
-  if (d.t !== '-') {
-    return {
-      lv2: d.t,
-      lv3: d.pt !== '-' ? d.pt : '-',
-    };
+  if (d.lv2 !== '-') {
+    return { lv2: d.lv2, lv3: d.lv3 };
   }
   return { lv2: '-', lv3: '-' };
 }
@@ -210,7 +202,7 @@ export function buildTree(
   const tree: Record<string, TreeNode> = {};
 
   for (const d of detail) {
-    const lv1 = d.b;
+    const lv1 = d.lv1;
     if (!tree[lv1]) {
       tree[lv1] = {
         name: lv1,
@@ -311,19 +303,16 @@ export function filterDetail(
   const rangeSet = new Set(range);
   return detail.filter(d => {
     if (!rangeSet.has(d.ym)) return false;
-    if (opts?.orgs && !opts.orgs.has(d.b)) return false;
+    if (opts?.orgs && !opts.orgs.has(d.lv1)) return false;
     if (opts?.depts) {
-      if (d.d === '-' && d.t === '-') return false;
-      const dk = d.d === '-' ? '(Direct)' : d.d;
-      if (!opts.depts.has(dk)) return false;
+      if (d.lv2 === '-') return false;
+      if (!opts.depts.has(d.lv2)) return false;
     }
     if (opts?.teams) {
-      if (d.t === '-' && d.d !== '-') {
+      if (d.lv3 === '-') {
         if (!opts.teams.has('(Direct)')) return false;
-      } else if (d.t === '-' && d.d === '-') {
-        return false;
       } else {
-        if (!opts.teams.has(d.t)) return false;
+        if (!opts.teams.has(d.lv3)) return false;
       }
     }
     if (opts?.products && !opts.products.has(d.p)) return false;
@@ -347,18 +336,10 @@ export function getWeeksInRange(detail: DetailRecord[], months: string[]): strin
 
 /** Get SVC Lv2 value from detail record */
 export function getSvcLv2(d: DetailRecord): string {
-  if (d.d !== '-') return d.d;
-  if (d.t !== '-') return d.t;
-  return '-';
+  return d.lv2;
 }
 
 /** Get SVC Lv3 value from detail record */
 export function getSvcLv3(d: DetailRecord): string {
-  if (d.d !== '-') {
-    return d.t !== '-' ? d.t : (d.pt !== '-' ? d.pt : '-');
-  }
-  if (d.t !== '-') {
-    return d.pt !== '-' ? d.pt : '-';
-  }
-  return '-';
+  return d.lv3;
 }

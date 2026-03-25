@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import D, { YM, WM } from '../../data';
+import { useData } from '../../contexts/DataContext';
 import { DetailRecord } from '../../types';
 import { getWeeksPerMonth, getSvcLv2, getSvcLv3, getWeeksInRange } from '../../utils/aggregation';
 import { ymLabel, getLastNMonths, fmtVal } from '../../utils/formatters';
@@ -10,6 +10,7 @@ import PersonInlineChart from '../charts/PersonInlineChart';
 interface SvcDetailProps {
   detail: DetailRecord[];
   org: string;
+  productLabelMap: Record<string, string>;
 }
 
 interface FlatRow {
@@ -21,7 +22,9 @@ interface FlatRow {
   total: number;
 }
 
-const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
+const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org, productLabelMap }) => {
+  const { ymList: YM, weekMondays: WM } = useData();
+  const pLabel = (name: string) => productLabelMap[name] || name;
   const [tmMode, setTmMode] = useState<'monthly' | 'weekly'>('monthly');
   const [fromYm, setFromYm] = useState(() => {
     const last4 = getLastNMonths(YM, 4);
@@ -206,7 +209,7 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
             >
               <option value="__all">All</option>
               {products.map(p => (
-                <option key={p} value={p}>{p}</option>
+                <option key={p} value={p}>{pLabel(p)}</option>
               ))}
             </select>
             <input
@@ -278,7 +281,7 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org }) => {
                       </span>
                       {row.member}
                     </span>
-                    <span className="svc-row-field svc-f-prod" style={{ width: colWidths[3] }}>{row.product}</span>
+                    <span className="svc-row-field svc-f-prod" style={{ width: colWidths[3] }}>{pLabel(row.product)}</span>
                   </div>
                   <div className="svc-time-spacer" />
                   {timeKeys.map(k => (

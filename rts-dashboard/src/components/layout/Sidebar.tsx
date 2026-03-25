@@ -1,27 +1,16 @@
 import React from 'react';
-import { LV1_COLORS } from '../../utils/colors';
+import { LV1_COLORS, GPD_PALETTES } from '../../utils/colors';
+import type { OrgNode } from '../../types';
 
 interface SidebarProps {
   activeOrg: string | null;
   onSelectOrg: (org: string) => void;
   onHome: () => void;
+  orgLv1: OrgNode[];
+  poOwnerIds: string[];
 }
 
-const SERVICES = [
-  { name: 'EPS', color: LV1_COLORS.EPS },
-  { name: 'WPS', color: LV1_COLORS.WPS },
-  { name: 'NAPS', color: LV1_COLORS.NAPS },
-  { name: 'PSM', color: LV1_COLORS.PSM },
-  { name: 'GCD', color: LV1_COLORS.GCD },
-];
-
-const OWNERS = [
-  { name: 'GPD1', color: '#7CB8E0' },
-  { name: 'GPD2', color: '#E0A8A0' },
-  { name: 'GPD3', color: '#80C0A0' },
-];
-
-const Sidebar: React.FC<SidebarProps> = ({ activeOrg, onSelectOrg, onHome }) => (
+const Sidebar: React.FC<SidebarProps> = ({ activeOrg, onSelectOrg, onHome, orgLv1, poOwnerIds }) => (
   <nav className="sidebar">
     <div className="sb-section">
       <div
@@ -34,27 +23,27 @@ const Sidebar: React.FC<SidebarProps> = ({ activeOrg, onSelectOrg, onHome }) => 
     </div>
     <div className="sb-section">
       <div className="sb-title">Shared Services</div>
-      {SERVICES.map(s => (
+      {orgLv1.map(s => (
         <div
           key={s.name}
           className={`sb-item ${activeOrg === s.name ? 'active' : ''}`}
           onClick={() => onSelectOrg(s.name)}
         >
-          <span className="sb-icon" style={{ background: s.color }} />
+          <span className="sb-icon" style={{ background: LV1_COLORS[s.name] || '#888' }} />
           {s.name}
         </div>
       ))}
     </div>
     <div className="sb-section">
       <div className="sb-title">Product Owners</div>
-      {OWNERS.map(o => (
+      {poOwnerIds.map(owner => (
         <div
-          key={o.name}
-          className={`sb-item ${activeOrg === o.name ? 'active' : ''}`}
-          onClick={() => onSelectOrg(o.name)}
+          key={owner}
+          className={`sb-item ${activeOrg === owner ? 'active' : ''}`}
+          onClick={() => onSelectOrg(owner)}
         >
-          <span className="sb-icon" style={{ background: o.color }} />
-          {o.name}
+          <span className="sb-icon" style={{ background: GPD_PALETTES[owner]?.[0] || '#888' }} />
+          {owner}
         </div>
       ))}
     </div>

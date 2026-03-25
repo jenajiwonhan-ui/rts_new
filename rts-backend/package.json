@@ -1,0 +1,23 @@
+{
+  "name": "rts-backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "job:fetch": "tsx src/jobs/fetchRawData.ts",
+    "job:backfill": "tsx src/jobs/fetchRawData.ts --backfill"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.0",
+    "node-cron": "^3.0.3",
+    "dotenv": "^16.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.0",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.3"
+  }
+}

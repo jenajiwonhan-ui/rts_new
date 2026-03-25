@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import D, { YM, WM } from '../../data';
+import { useData } from '../../contexts/DataContext';
 import { DetailRecord, TreeNode } from '../../types';
 import { buildTree, sortByTotal, getWeeksPerMonth, getWeeksInRange } from '../../utils/aggregation';
 import { ymLabel, getLastNMonths, fmtVal } from '../../utils/formatters';
@@ -15,6 +15,7 @@ interface GpdTreeProps {
 }
 
 const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
+  const { ymList: YM, weekMondays: WM, detail: allDetail } = useData();
   const [tmMode, setTmMode] = useState<'monthly' | 'weekly'>('monthly');
   const [depth, setDepth] = useState<'2' | '3' | 'a'>('2');
   const [search, setSearch] = useState('');
@@ -52,7 +53,7 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
 
   const timeKeys = useMemo(() => {
     if (tmMode === 'monthly') return range;
-    return getWeeksInRange(D.detail, range);
+    return getWeeksInRange(allDetail, range);
   }, [tmMode, range]);
 
   const tree = useMemo(() => buildTree(filteredDetail, tmMode, wpm), [filteredDetail, tmMode, wpm]);
@@ -169,8 +170,17 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
     </>
   );
 
-  const renderMemberRow = (name: string, times: Record<string, number>, parentKey: string) => {
+  const renderMemberRow = (name: string, times: Record<string, number>, parentKey: string, orgFilter?: { lv1?: string; lv2?: string; lv3?: string }) => {
     const personKey = `${parentKey}|${name}`;
+    // 해당 조직 경로에 속하는 detail만 필터
+    const filteredDetail = orgFilter
+      ? detail.filter(d => {
+          if (orgFilter.lv1 && d.lv1 !== orgFilter.lv1) return false;
+          if (orgFilter.lv2 && d.lv2 !== orgFilter.lv2) return false;
+          if (orgFilter.lv3 && d.lv3 !== orgFilter.lv3) return false;
+          return true;
+        })
+      : detail;
     return (
       <React.Fragment key={personKey}>
         <div className={`tree-row tree-zebra${expandedPersons.has(personKey) ? ' person-row-active' : ''}`}>
@@ -195,7 +205,7 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
         {expandedPersons.has(personKey) && (
           <PersonInlineChart
             name={name}
-            detail={D.detail}
+            detail={filteredDetail}
             range={range}
             tmMode={tmMode}
             onClose={() => togglePerson(personKey)}
@@ -346,7 +356,7 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
                                   </div>
 
                                   {isLv3Open && lv3Members.map(([name, times]) =>
-                                    renderMemberRow(name, times, lv3FullKey)
+                                    renderMemberRow(name, times, lv3FullKey, { lv1: lv1Key, lv2: lv2Key, lv3: lv3Key })
                                   )}
                                 </React.Fragment>
                               );

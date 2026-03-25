@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 import { Bar } from 'react-chartjs-2';
-import D, { WM } from '../../data';
+import { useData } from '../../contexts/DataContext';
 import { getWeeksPerMonth, buildProdColors } from '../../utils/aggregation';
 import { ymLabel } from '../../utils/formatters';
 import { hexLum } from '../../utils/colors';
@@ -13,12 +13,13 @@ interface PersonInlineChartProps {
   range: string[];
   tmMode: 'monthly' | 'weekly';
   onClose?: () => void;
-  scrollRef?: React.RefObject<HTMLDivElement>;
+  scrollRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
   name, detail, range, tmMode, onClose, scrollRef,
 }) => {
+  const { weekMondays: WM, gpdGroups, productColors } = useData();
   // Measure visible width of scroll container
   const [visibleW, setVisibleW] = useState(900);
   const measure = useCallback(() => {
@@ -55,7 +56,7 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
     if (records.length === 0) return null;
 
     const wpm = getWeeksPerMonth(records);
-    const prodColors = buildProdColors(records);
+    const prodColors = buildProdColors(records, gpdGroups, productColors);
 
     if (tmMode === 'monthly') {
       const labels = range.map(ymLabel);

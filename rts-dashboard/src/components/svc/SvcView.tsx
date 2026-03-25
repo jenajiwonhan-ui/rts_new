@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import D, { YM, WM } from '../../data';
+import { useData } from '../../contexts/DataContext';
 import { DetailRecord } from '../../types';
 import {
   getWeeksPerMonth, buildProdColors, getWeeksInRange,
@@ -17,22 +17,25 @@ interface SvcViewProps {
   lv2: string | null;
   lvl: string;
   onLv2Change: (lv2: string | null, lvl: string) => void;
+  productLabelMap: Record<string, string>;
 }
 
 const GPD_CLR: Record<string, string> = { GPD1: '#7CB8E0', GPD2: '#E0A8A0', GPD3: '#80C0A0' };
 
-const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
+const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLabelMap }) => {
+  const { detail: allDetail, ymList: YM, weekMondays: WM, gpdGroups, productColors } = useData();
+  const pLabel = (name: string) => productLabelMap[name] || name;
   const [tmMode, setTmMode] = useState<'monthly' | 'weekly'>('monthly');
   const [hlLabel, setHlLabel] = useState<string | null>(null);
 
   // Filter detail for this service org
   const detail = useMemo(() => {
-    let filtered = D.detail.filter(d => d.b === org);
+    let filtered = allDetail.filter(d => d.lv1 === org);
     if (lv2 && lv2 !== '__all') {
       if (lvl === '2') {
-        filtered = filtered.filter(d => d.d === lv2 || (d.d === '-' && d.t === lv2));
+        filtered = filtered.filter(d => d.lv2 === lv2);
       } else if (lvl === '3') {
-        filtered = filtered.filter(d => d.t === lv2 || d.pt === lv2);
+        filtered = filtered.filter(d => d.lv3 === lv2);
       }
     }
     return filtered;
@@ -44,7 +47,7 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
 
   // Bar chart data
   const barData = useMemo(() => {
-    const prodColors = buildProdColors(rangeDetail);
+    const prodColors = buildProdColors(rangeDetail, gpdGroups, productColors);
     if (tmMode === 'monthly') {
       const labels = mRange.map(ymLabel);
       const prodTimes: Record<string, Record<string, number>> = {};
@@ -54,11 +57,11 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
         prodTimes[d.p][d.ym] = (prodTimes[d.p][d.ym] || 0) + d.tot / w;
       }
       const datasets = prodColors.allItems.map(p => ({
-        label: p, data: mRange.map(ym => prodTimes[p]?.[ym] || 0), backgroundColor: prodColors.colorMap[p],
+        label: pLabel(p), data: mRange.map(ym => prodTimes[p]?.[ym] || 0), backgroundColor: prodColors.colorMap[p],
       }));
-      return { labels, datasets, legendItems: prodColors.allItems.map(p => ({ label: p, color: prodColors.colorMap[p] })) };
+      return { labels, datasets, legendItems: prodColors.allItems.map(p => ({ label: pLabel(p), color: prodColors.colorMap[p] })) };
     } else {
-      const weeks = getWeeksInRange(D.detail, mRange).sort();
+      const weeks = getWeeksInRange(allDetail, mRange).sort();
       const labels = weeks.map(w => WM[w] || w);
       const prodTimes: Record<string, Record<string, number>> = {};
       for (const d of rangeDetail) {
@@ -68,9 +71,9 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
         }
       }
       const datasets = prodColors.allItems.map(p => ({
-        label: p, data: weeks.map(w => prodTimes[p]?.[w] || 0), backgroundColor: prodColors.colorMap[p],
+        label: pLabel(p), data: weeks.map(w => prodTimes[p]?.[w] || 0), backgroundColor: prodColors.colorMap[p],
       }));
-      return { labels, datasets, legendItems: prodColors.allItems.map(p => ({ label: p, color: prodColors.colorMap[p] })) };
+      return { labels, datasets, legendItems: prodColors.allItems.map(p => ({ label: pLabel(p), color: prodColors.colorMap[p] })) };
     }
   }, [rangeDetail, tmMode, mRange, wpm]);
 
@@ -85,9 +88,9 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
       prodTotals[d.p] = (prodTotals[d.p] || 0) + d.tot / w;
     }
     const sorted = Object.entries(prodTotals).sort((a, b) => b[1] - a[1]);
-    const prodColors = buildProdColors(prevDetail);
+    const prodColors = buildProdColors(prevDetail, gpdGroups, productColors);
     return {
-      labels: sorted.map(e => e[0]),
+      labels: sorted.map(e => pLabel(e[0])),
       data: sorted.map(e => e[1]),
       colors: sorted.map(e => prodColors.colorMap[e[0]] || '#ccc'),
       top: sorted,
@@ -105,11 +108,11 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
     for (const [pName, pVal] of pieData.top) {
       if (pName === 'Non-product') { npTotal = pVal; continue; }
       if (pName.indexOf('Out of Office') >= 0) { oofTotal += pVal; continue; }
-      const grp = D.gpd_groups[pName];
+      const grp = gpdGroups[pName];
       if (grp) {
         if (!gpdTotals[grp.gpd]) gpdTotals[grp.gpd] = { total: 0, products: [] };
         gpdTotals[grp.gpd].total += pVal;
-        gpdTotals[grp.gpd].products.push({ name: grp.short, val: pVal });
+        gpdTotals[grp.gpd].products.push({ name: pLabel(pName), val: pVal });
       } else {
         etcProducts[pName] = (etcProducts[pName] || 0) + pVal;
       }
@@ -121,21 +124,22 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
 
     const items: { name: string; total: number; sub: string; clr: string }[] = [];
 
-    for (const g of ['GPD1', 'GPD2', 'GPD3']) {
-      if (!gpdTotals[g]) continue;
+    // product_owner 그룹별 (DB 기반)
+    const gpdOrder = Object.keys(gpdTotals).sort();
+    for (const g of gpdOrder) {
       const prods = gpdTotals[g].products.sort((a, b) => b.val - a.val);
       const subStr = prods.map((p, i) => `${i + 1}. ${p.name} (${p.val.toFixed(1)})`).join('  |  ');
       items.push({ name: g, total: gpdTotals[g].total, sub: subStr, clr: GPD_CLR[g] || '#7c6dd8' });
     }
     if (etcTotal > 0) {
-      const etcSub = etcSorted.slice(0, 3).map((e, i) => `${i + 1}. ${e[0]} (${e[1].toFixed(1)})`).join('  |  ');
+      const etcSub = etcSorted.slice(0, 3).map((e, i) => `${i + 1}. ${pLabel(e[0])} (${e[1].toFixed(1)})`).join('  |  ');
       items.push({ name: 'Other', total: etcTotal, sub: etcSub, clr: '#8e9aaf' });
     }
-    if (npTotal > 0) items.push({ name: 'Non-product', total: npTotal, sub: '', clr: NPC });
-    if (oofTotal > 0) items.push({ name: '휴가(Out of Office)', total: oofTotal, sub: '', clr: OOF });
+    if (npTotal > 0) items.push({ name: pLabel('Non-product'), total: npTotal, sub: '', clr: NPC });
+    if (oofTotal > 0) items.push({ name: pLabel('휴가(Out of Office)'), total: oofTotal, sub: '', clr: OOF });
 
     return items;
-  }, [pieData.top]);
+  }, [pieData.top, gpdGroups, productLabelMap]);
 
   return (
     <div className="content">
@@ -209,7 +213,7 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change }) => {
 
       {/* Section 2: Detail Table */}
       <div className="sec">
-        <SvcDetail detail={detail} org={org} />
+        <SvcDetail detail={detail} org={org} productLabelMap={productLabelMap} />
       </div>
     </div>
   );

@@ -31,16 +31,27 @@
 .bc-sep { margin: 0 6px; color: var(--ba); font-size: 10px; }
 .bc-cur { color: var(--text); font-weight: 600; }
 
-/* Loading */
-@keyframes spin { to { transform: rotate(360deg); } }
-.loading-spinner { display: flex; align-items: center; justify-content: center; height: 300px; }
-.loading-spinner::after {
-  content: "";
-  width: 28px; height: 28px;
-  border: 3px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin .7s linear infinite;
+/* Loading — Material-style circular indeterminate spinner */
+@keyframes spinner-rotate { to { transform: rotate(360deg); } }
+@keyframes spinner-dash {
+  0%   { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
+  50%  { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
+  100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
+}
+.loading-spinner {
+  display: flex; align-items: center; justify-content: center; height: 300px;
+}
+.loading-spinner svg {
+  width: 44px; height: 44px;
+  animation: spinner-rotate 1.4s linear infinite;
+}
+.loading-spinner .spinner-track {
+  fill: none; stroke: var(--border); stroke-width: 3.5;
+}
+.loading-spinner .spinner-arc {
+  fill: none; stroke: var(--accent); stroke-width: 3.5;
+  stroke-linecap: round;
+  animation: spinner-dash 1.4s ease-in-out infinite;
 }
 
 /* Layout */

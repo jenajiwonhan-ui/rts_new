@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { DetailRecord, OrgNode, Product } from '../types';
 import { fetchOrgNodes } from '../services/orgNodeService';
 import { fetchProducts, buildPoGames, buildGpdConfig, buildProductLabelMap } from '../services/productService';
@@ -20,7 +20,12 @@ interface DataContextValue {
   productLabelMap: Record<string, string>;
 
   // 로딩 상태
+  sidebarLoading: boolean;
+  detailLoading: boolean;
   loading: boolean;
+
+  // rts_entries 로드 트리거
+  loadDetail: () => void;
 }
 
 const DataContext = createContext<DataContextValue | null>(null);
@@ -31,32 +36,50 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [detail, setDetail] = useState<DetailRecord[]>([]);
   const [ymList, setYmList] = useState<string[]>([]);
   const [weekMondays, setWeekMondays] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
+  const [sidebarLoading, setSidebarLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
 
+  const orgNodesRef = useRef<OrgNode[]>([]);
+  const detailLoaded = useRef(false);
+
+  // Step 1: 사이드바용 데이터만 먼저 로드
   useEffect(() => {
-    async function loadAll() {
+    async function loadSidebar() {
       try {
-        const [orgNodes, prods, entries] = await Promise.all([
+        const [orgNodes, prods] = await Promise.all([
           fetchOrgNodes(),
           fetchProducts(),
-          fetchRtsEntries(),
         ]);
-
+        orgNodesRef.current = orgNodes;
         setAllOrgNodes(orgNodes);
         setProducts(prods);
-
-        const detailRecords = transformToDetailRecords(entries, orgNodes);
-        setDetail(detailRecords);
-        setYmList(extractYmList(entries));
-        setWeekMondays(extractWeekMondays(entries));
       } catch (err) {
-        console.error('[DataContext] Load failed:', err);
+        console.error('[DataContext] Sidebar load failed:', err);
       } finally {
-        setLoading(false);
+        setSidebarLoading(false);
       }
     }
-    loadAll();
+    loadSidebar();
   }, []);
+
+  // Step 2: 조직 선택 시 rts_entries 로드 (한 번만)
+  const loadDetail = useCallback(async () => {
+    if (detailLoaded.current || detailLoading) return;
+    detailLoaded.current = true;
+    setDetailLoading(true);
+    try {
+      const entries = await fetchRtsEntries();
+      const detailRecords = transformToDetailRecords(entries, orgNodesRef.current);
+      setDetail(detailRecords);
+      setYmList(extractYmList(entries));
+      setWeekMondays(extractWeekMondays(entries));
+    } catch (err) {
+      console.error('[DataContext] Detail load failed:', err);
+      detailLoaded.current = false;
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [detailLoading]);
 
   const poGames = useMemo(() => buildPoGames(products), [products]);
   const gpdConfig = useMemo(() => buildGpdConfig(products), [products]);
@@ -80,12 +103,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return map;
   }, [products]);
 
+  const loading = sidebarLoading;
+
   const value = useMemo<DataContextValue>(() => ({
     detail, ymList, weekMondays, productColors, gpdGroups,
     allOrgNodes, products, poGames, gpdConfig, productLabelMap,
-    loading,
+    sidebarLoading, detailLoading, loading,
+    loadDetail,
   }), [detail, ymList, weekMondays, productColors, gpdGroups,
-       allOrgNodes, products, poGames, gpdConfig, productLabelMap, loading]);
+       allOrgNodes, products, poGames, gpdConfig, productLabelMap,
+       sidebarLoading, detailLoading, loading, loadDetail]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };

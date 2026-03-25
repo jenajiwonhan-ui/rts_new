@@ -13,7 +13,8 @@ type ViewMode = 'home' | 'svc' | 'gpd';
 
 const App: React.FC = () => {
   const {
-    allOrgNodes, products, poGames, gpdConfig, productLabelMap, loading,
+    allOrgNodes, products, poGames, gpdConfig, productLabelMap,
+    loading, detailLoading, loadDetail,
   } = useData();
 
   const [viewMode, setViewMode] = useState<ViewMode>('home');
@@ -36,6 +37,7 @@ const App: React.FC = () => {
   const isGpd = useCallback((org: string) => poOwnerIds.includes(org), [poOwnerIds]);
 
   const handleSelectOrg = useCallback((org: string) => {
+    loadDetail();
     setActiveOrg(org);
     if (isGpd(org)) {
       setViewMode('gpd');
@@ -47,7 +49,7 @@ const App: React.FC = () => {
       setCurSvcLvl('1');
       setCurGpdProd(null);
     }
-  }, [isGpd]);
+  }, [isGpd, loadDetail]);
 
   const handleHome = useCallback(() => {
     setViewMode('home');
@@ -125,7 +127,7 @@ const App: React.FC = () => {
   }, [viewMode, activeOrg, curGpdProd, curSvcLv2, poGames]);
 
   if (loading) {
-    return <div className="app"><Header /><div style={{ padding: 40, textAlign: 'center' }}>Loading...</div></div>;
+    return <div className="app"><Header /><div className="loading-spinner"><svg viewBox="0 0 44 44"><circle className="spinner-track" cx="22" cy="22" r="18" /><circle className="spinner-arc" cx="22" cy="22" r="18" /></svg></div></div>;
   }
 
   return (
@@ -180,8 +182,16 @@ const App: React.FC = () => {
             </div>
           )}
 
+          {detailLoading && (
+            <div className="loading-spinner">
+              <svg viewBox="0 0 44 44">
+                <circle className="spinner-track" cx="22" cy="22" r="18" />
+                <circle className="spinner-arc" cx="22" cy="22" r="18" />
+              </svg>
+            </div>
+          )}
           {viewMode === 'home' && <HomePage />}
-          {viewMode === 'gpd' && activeOrg && (
+          {!detailLoading && viewMode === 'gpd' && activeOrg && (
             <GpdView
               key={`${activeOrg}-${curGpdProd}`}
               org={activeOrg}
@@ -189,7 +199,7 @@ const App: React.FC = () => {
               gpdConfig={gpdConfig}
             />
           )}
-          {viewMode === 'svc' && activeOrg && (
+          {!detailLoading && viewMode === 'svc' && activeOrg && (
             <SvcView
               key={`${activeOrg}-${curSvcLv2}`}
               org={activeOrg}

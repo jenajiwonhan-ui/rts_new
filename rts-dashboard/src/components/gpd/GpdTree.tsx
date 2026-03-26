@@ -198,7 +198,6 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
               </span>
               &nbsp;{name}
             </div>
-            <div className="tree-row-cnt">&nbsp;</div>
           </div>
           {renderTimeVals(times)}
         </div>
@@ -270,7 +269,6 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
         <div className="tree-hdr">
           <div className="tree-fixed">
             <div className="tree-hdr-name">Organization</div>
-            <div className="tree-hdr-cnt">#</div>
           </div>
           <div className="tree-time-spacer" />
           {timeKeys.map(k => (
@@ -300,7 +298,6 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
                     <span className="tree-tgl">{isLv1Open ? '▼' : '▶'}</span>
                     {lv1Key}
                   </div>
-                  <div className="tree-row-cnt">{lv1Node.memberCount}</div>
                 </div>
                 <div className="tree-time-spacer" />
                 {timeKeys.map(k => (
@@ -328,7 +325,6 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
                               <span className="tree-tgl">{isLv2Open ? '▼' : '▶'}</span>
                               {lv2Key}
                             </div>
-                            <div className="tree-row-cnt">{lv2Node.memberCount}</div>
                           </div>
                           {renderTimeVals(lv2Node.times)}
                         </div>
@@ -350,7 +346,6 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
                                         <span className="tree-tgl">{isLv3Open ? '▼' : '▶'}</span>
                                         {lv3Key}
                                       </div>
-                                      <div className="tree-row-cnt">{lv3Node.memberCount}</div>
                                     </div>
                                     {renderTimeVals(lv3Node.times)}
                                   </div>

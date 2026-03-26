@@ -43,6 +43,8 @@ const gpdTopLabelPlugin = {
     const orgDepth = customOpts.orgDepth || 'l';
     const isSvc = !!customOpts.isSvc;
     const hl = customOpts.highlightedLabel || null;
+    const lbWeeks = customOpts.lastBarWeeks || 0;
+    const showLastBar = lbWeeks >= 3;
 
     // ── Pre-compute per-bar totals ──
     const barTotals: number[] = [];
@@ -57,25 +59,26 @@ const gpdTopLabelPlugin = {
     // ── Last bar is excluded (incomplete period) ──
     const lastBar = barCount - 1;
 
-    // ── Pre-compute which datasets qualify for labels (must pass ALL bars except last) ──
+    // ── Pre-compute which datasets qualify for labels (majority of bars must pass) ──
     const dsVisible: boolean[] = [];
+    const checkBars = showLastBar ? barCount : lastBar; // exclude last bar if < 3 weeks
     for (let di = 0; di < dsCount; di++) {
       if (hl && chart.data.datasets[di].label !== hl) { dsVisible.push(false); continue; }
       const isHl = hl && chart.data.datasets[di].label === hl;
       if (isHl) { dsVisible.push(true); continue; }
-      let allPass = true;
-      for (let bi = 0; bi < lastBar; bi++) {
+      let passCount = 0;
+      for (let bi = 0; bi < checkBars; bi++) {
         const v = (chart.data.datasets[di].data[bi] as number) || 0;
-        if (v <= 0) { allPass = false; break; }
+        if (v <= 0) continue;
         const bar = chart.getDatasetMeta(di).data[bi] as any;
-        if (!bar) { allPass = false; break; }
+        if (!bar) continue;
         const segH = Math.abs(bar.base - bar.y);
-        if (segH < 4) { allPass = false; break; }
+        if (segH < 4) continue;
         const total = barTotals[bi];
         const pct = total > 0 ? (v / total) * 100 : 0;
-        if (pct < 10 || segH < 20) { allPass = false; break; }
+        if (pct >= 10 && segH >= 20) passCount++;
       }
-      dsVisible.push(allPass);
+      dsVisible.push(checkBars > 0 && passCount > checkBars / 2);
     }
 
     for (let bi = 0; bi < barCount; bi++) {
@@ -91,25 +94,24 @@ const gpdTopLabelPlugin = {
         }
       }
       if (total <= 0 || topY === Infinity) continue;
-      if (bi === lastBar && !hl) continue; // skip incomplete last period unless highlighted
 
       ctx.save();
 
-      // ── Total label ──
+      // ── Total label (always shown) ──
       ctx.font = '600 14px Pretendard, sans-serif';
       ctx.fillStyle = '#5f6280';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
 
+      const totalText = total.toFixed(1);
       if (bi > 0) {
         const diff = total - prevTotal;
-        const totalText = total.toFixed(1);
-        const diffText = ` ${diff >= 0 ? '+' : ''}${diff.toFixed(1)}`;
+        const diffText = ` (${diff >= 0 ? '▲' : '▼'}${Math.abs(diff).toFixed(1)})`;
 
         {
           ctx.font = '600 14px Pretendard, sans-serif';
           const totalW = ctx.measureText(totalText).width;
-          ctx.font = '400 12px Pretendard, sans-serif';
+          ctx.font = '400 11px Pretendard, sans-serif';
           const diffW = ctx.measureText(diffText).width;
           const fullW = totalW + diffW;
           const startX = lastMeta.data[bi].x - fullW / 2;
@@ -119,12 +121,30 @@ const gpdTopLabelPlugin = {
           ctx.fillStyle = '#5f6280';
           ctx.fillText(totalText, startX, topY - 10);
 
-          ctx.font = '400 12px Pretendard, sans-serif';
+          ctx.font = '400 11px Pretendard, sans-serif';
           ctx.fillStyle = diff >= 0 ? '#4a8cb8' : '#c07060';
           ctx.fillText(diffText, startX + totalW, topY - 10);
         }
+      } else if (barCount > 1) {
+        // First bar with no previous data: show total + dash
+        const diffText = ' (-)';
+        ctx.font = '600 14px Pretendard, sans-serif';
+        const totalW = ctx.measureText(totalText).width;
+        ctx.font = '400 11px Pretendard, sans-serif';
+        const diffW = ctx.measureText(diffText).width;
+        const fullW = totalW + diffW;
+        const startX = lastMeta.data[bi].x - fullW / 2;
+
+        ctx.textAlign = 'left';
+        ctx.font = '600 14px Pretendard, sans-serif';
+        ctx.fillStyle = '#5f6280';
+        ctx.fillText(totalText, startX, topY - 10);
+
+        ctx.font = '400 11px Pretendard, sans-serif';
+        ctx.fillStyle = '#9498b0';
+        ctx.fillText(diffText, startX + totalW, topY - 10);
       } else {
-        ctx.fillText(total.toFixed(1), lastMeta.data[bi].x, topY - 10);
+        ctx.fillText(totalText, lastMeta.data[bi].x, topY - 10);
       }
 
       // ── Per-segment labels ──
@@ -132,6 +152,8 @@ const gpdTopLabelPlugin = {
         if (!dsVisible[di]) continue;
         const v = (chart.data.datasets[di].data[bi] as number) || 0;
         const isHl = hl && chart.data.datasets[di].label === hl;
+        // Last bar: hide segments if < 3 weeks, unless highlighted
+        if (bi === lastBar && !showLastBar && !isHl) continue;
         const bar = chart.getDatasetMeta(di).data[bi] as any;
         if (!bar) continue;
         const segH = Math.abs(bar.base - bar.y);
@@ -164,11 +186,11 @@ const gpdTopLabelPlugin = {
           const segDiff = v - prevV;
 
           const valText = v.toFixed(1);
-          const diffText = ` ${segDiff >= 0 ? '+' : ''}${segDiff.toFixed(1)}`;
+          const diffText = ` (${segDiff >= 0 ? '▲' : '▼'}${Math.abs(segDiff).toFixed(1)})`;
 
           ctx.font = '600 14px Pretendard, sans-serif';
           const valW = ctx.measureText(valText).width;
-          ctx.font = '400 12px Pretendard, sans-serif';
+          ctx.font = '400 11px Pretendard, sans-serif';
           const diffW = ctx.measureText(diffText).width;
           const fullW = valW + diffW;
           const startX = bar.x - fullW / 2;
@@ -189,7 +211,7 @@ const gpdTopLabelPlugin = {
             ctx.fillStyle = valColor;
             ctx.fillText(valText, chipStartX, cy);
 
-            ctx.font = '400 12px Pretendard, sans-serif';
+            ctx.font = '400 11px Pretendard, sans-serif';
             ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
             ctx.fillText(diffText, chipStartX + valW, cy);
           } else {
@@ -199,7 +221,7 @@ const gpdTopLabelPlugin = {
             ctx.fillStyle = valColor;
             ctx.fillText(valText, startX, cy);
 
-            ctx.font = '400 12px Pretendard, sans-serif';
+            ctx.font = '400 11px Pretendard, sans-serif';
             ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
             ctx.fillText(diffText, startX + valW, cy);
           }
@@ -240,34 +262,38 @@ const segLabelsPlugin = {
 
     const ctx = chart.ctx;
     const dsCount = chart.data.datasets.length;
-    const hl = ((chart.options as any).__custom || {}).highlightedLabel || null;
+    const customOpts2 = (chart.options as any).__custom || {};
+    const hl = customOpts2.highlightedLabel || null;
+    const lbWeeks2 = customOpts2.lastBarWeeks || 0;
+    const showLastBar2 = lbWeeks2 >= 3;
 
     const barCount2 = chart.getDatasetMeta(0)?.data.length || 0;
     const lastBar2 = barCount2 - 1;
 
-    // Pre-compute which datasets qualify (must pass ALL bars except last)
+    // Pre-compute which datasets qualify (majority of bars must pass)
+    const checkBars2 = showLastBar2 ? barCount2 : lastBar2;
     const dsVis2: boolean[] = [];
     for (let di = 0; di < dsCount; di++) {
       if (hl && chart.data.datasets[di].label !== hl) { dsVis2.push(false); continue; }
       const isHl = hl && chart.data.datasets[di].label === hl;
       if (isHl) { dsVis2.push(true); continue; }
-      let allPass = true;
+      let passCount = 0;
       const meta = chart.getDatasetMeta(di);
-      for (let bi = 0; bi < lastBar2; bi++) {
+      for (let bi = 0; bi < checkBars2; bi++) {
         const v = (chart.data.datasets[di].data[bi] as number) || 0;
-        if (v <= 0) { allPass = false; break; }
+        if (v <= 0) continue;
         const bar = meta.data[bi] as any;
-        if (!bar) { allPass = false; break; }
+        if (!bar) continue;
         const segH = Math.abs(bar.base - bar.y);
-        if (segH < 14) { allPass = false; break; }
+        if (segH < 4) continue;
         let total = 0;
         for (let d = 0; d < dsCount; d++) {
           total += (chart.data.datasets[d].data[bi] as number) || 0;
         }
         const pct = total > 0 ? (v / total) * 100 : 0;
-        if (pct < 10) { allPass = false; break; }
+        if (pct >= 10 && segH >= 20) passCount++;
       }
-      dsVis2.push(allPass);
+      dsVis2.push(checkBars2 > 0 && passCount > checkBars2 / 2);
     }
 
     for (let di = 0; di < dsCount; di++) {
@@ -275,7 +301,7 @@ const segLabelsPlugin = {
       const isHl = hl && chart.data.datasets[di].label === hl;
       const meta = chart.getDatasetMeta(di);
       for (let bi = 0; bi < meta.data.length; bi++) {
-        if (bi === lastBar2 && !isHl) continue; // skip incomplete last period unless highlighted
+        if (bi === lastBar2 && !isHl && !showLastBar2) continue; // skip incomplete last period unless highlighted or 3+ weeks
         const v = (chart.data.datasets[di].data[bi] as number) || 0;
         const bar = meta.data[bi] as any;
         if (!bar) continue;
@@ -346,6 +372,7 @@ interface StackedBarChartProps {
   isSvc?: boolean;
   highlightedLabel?: string | null;
   onHighlight?: (label: string | null) => void;
+  lastBarWeeks?: number;
 }
 
 /* ─── helper: apply highlight opacity to a hex color ─── */
@@ -363,6 +390,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
   labels, datasets, yTitle = 'M/M', height = 350,
   mode = 'svcGpd', timeMode = 'monthly', maxY,
   orgDepth = 'l', isSvc = false, highlightedLabel, onHighlight,
+  lastBarWeeks = 0,
 }) => {
   const [interacted, setInteracted] = React.useState(false);
 
@@ -419,7 +447,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
         responsive: true,
         maintainAspectRatio: false,
         layout: { padding: { bottom: 12 } },
-        __custom: { orgDepth, isSvc, highlightedLabel },
+        __custom: { orgDepth, isSvc, highlightedLabel, lastBarWeeks },
         animation: animationOpts,
         transitions: transitionOpts,
         onHover: handleHover,
@@ -460,7 +488,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
         responsive: true,
         maintainAspectRatio: false,
         animation: animationOpts,
-        __custom: { highlightedLabel },
+        __custom: { highlightedLabel, lastBarWeeks },
         onHover: handleHover,
         hover: commonHover,
         plugins: {

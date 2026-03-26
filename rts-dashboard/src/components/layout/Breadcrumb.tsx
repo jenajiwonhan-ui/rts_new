@@ -7,10 +7,9 @@ interface BreadcrumbProps {
 
 const Breadcrumb: React.FC<BreadcrumbProps> = ({ parts, onHomeClick }) => (
   <div className="breadcrumb">
-    <a onClick={onHomeClick}>Home</a>
     {parts.map((p, i) => (
       <React.Fragment key={i}>
-        <span className="bc-sep">›</span>
+        {i > 0 && <span className="bc-sep">›</span>}
         {i === parts.length - 1 ? (
           <span className="bc-cur">{p}</span>
         ) : (

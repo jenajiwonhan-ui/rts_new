@@ -17,16 +17,19 @@ interface GpdViewProps {
   org: string;
   product: string | null;
   gpdConfig: Record<string, { products: Record<string, string> }>;
+  npdProducts?: string[];
 }
 
-const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig }) => {
+const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig, npdProducts }) => {
   const { detail: allDetail, ymList: YM, weekMondays: WM } = useData();
   const [tmMode, setTmMode] = useState<'monthly' | 'weekly'>('monthly');
   const [orgDepth, setOrgDepth] = useState<'l' | 'd'>('l');
   const [hlLabel, setHlLabel] = useState<string | null>(null);
+  const [snapYm, setSnapYm] = useState<string | null>(null);
 
+  const isNpd = !!npdProducts;
   const cfg = gpdConfig[org];
-  const productNames = cfg ? Object.values(cfg.products) : [];
+  const productNames = isNpd ? npdProducts! : (cfg ? Object.values(cfg.products) : []);
 
   const detail = useMemo(() => {
     const prods = product ? new Set([product]) : new Set(productNames);
@@ -36,6 +39,7 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig }) => {
   const mRange = useMemo(() => getLastNMonths(YM, 4), []);
   const rangeDetail = useMemo(() => detail.filter(d => mRange.includes(d.ym)), [detail, mRange]);
   const wpm = useMemo(() => getWeeksPerMonth(rangeDetail), [rangeDetail]);
+  const lastMonthWeeks = mRange.length > 0 ? (wpm[mRange[mRange.length - 1]] || 0) : 0;
 
   // Bar chart data
   const barData = useMemo(() => {
@@ -77,9 +81,13 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig }) => {
     }
   }, [rangeDetail, tmMode, orgDepth, mRange, wpm]);
 
-  // Pie chart data (previous month, always Lv.1)
+  // Snapshot month: default to previous month
+  const defaultSnapYm = useMemo(() => mRange.length >= 2 ? mRange[mRange.length - 2] : mRange[mRange.length - 1], [mRange]);
+  const activeSnapYm = snapYm || defaultSnapYm;
+
+  // Pie chart data (snapshot month, always Lv.1)
   const pieData = useMemo(() => {
-    const prevYm = mRange.length >= 2 ? mRange[mRange.length - 2] : mRange[mRange.length - 1];
+    const prevYm = activeSnapYm;
     const prevDetail = rangeDetail.filter(d => d.ym === prevYm);
     const prevWpm = getWeeksPerMonth(prevDetail);
     const orgTotals: Record<string, number> = {};
@@ -93,13 +101,28 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig }) => {
       data: sorted.map(e => e[1]),
       colors: sorted.map(e => LV1_COLORS[e[0]] || '#ccc'),
       pieCM: Object.fromEntries(sorted.map(e => [e[0], LV1_COLORS[e[0]] || '#ccc'])),
-      title: `${ymLabel(prevYm)} Snapshot`,
+      title: 'Monthly Snapshot',
     };
-  }, [rangeDetail, mRange]);
+  }, [rangeDetail, activeSnapYm]);
+
+  // Previous month data for diff
+  const prevSnapLv1Totals = useMemo(() => {
+    const snapIdx = mRange.indexOf(activeSnapYm);
+    if (snapIdx <= 0) return {};
+    const prevYm = mRange[snapIdx - 1];
+    const prevDetail = rangeDetail.filter(d => d.ym === prevYm);
+    const prevWpm = getWeeksPerMonth(prevDetail);
+    const wc = prevWpm[prevYm] || 1;
+    const totals: Record<string, number> = {};
+    for (const d of prevDetail) {
+      totals[d.lv1] = (totals[d.lv1] || 0) + d.tot / wc;
+    }
+    return totals;
+  }, [rangeDetail, activeSnapYm, mRange]);
 
   // Ranking data: Lv.1 > Lv.2 breakdown (matching original HTML)
   const rankingData = useMemo(() => {
-    const prevYm = mRange.length >= 2 ? mRange[mRange.length - 2] : mRange[mRange.length - 1];
+    const prevYm = activeSnapYm;
     const prevDetail = rangeDetail.filter(d => d.ym === prevYm);
     const prevWpm = getWeeksPerMonth(prevDetail);
     const wcPie = prevWpm[prevYm] || 1;
@@ -131,10 +154,12 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig }) => {
       const lv2Str = lv2Sorted.slice(0, 3).map(([name, s2], si) =>
         `${si + 1}. ${name} (${s2.total.toFixed(1)})`
       ).join('  |  ');
+      const prev = prevSnapLv1Totals[lv1];
+      const diff = prev != null ? data.total - prev : null;
 
-      return { rank: i + 1, name: lv1, total: data.total, color: clr, darkColor: darkenHex(clr, 60), detail: lv2Str };
+      return { rank: i + 1, name: lv1, total: data.total, diff, color: clr, darkColor: darkenHex(clr, 60), detail: lv2Str };
     });
-  }, [rangeDetail, mRange, pieData.pieCM]);
+  }, [rangeDetail, activeSnapYm, pieData.pieCM, prevSnapLv1Totals]);
 
   return (
     <div className="content">
@@ -146,6 +171,9 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig }) => {
           <div className="gpd-panel">
             <div className="gpd-panel-header">
               <h3>{pieData.title}</h3>
+              <select className="fi" value={activeSnapYm} onChange={e => setSnapYm(e.target.value)}>
+                {mRange.map(ym => <option key={ym} value={ym}>{ymLabel(ym)}</option>)}
+              </select>
             </div>
             <div className="gpd-mix-row">
               <div className="gpd-mix-rank">
@@ -153,7 +181,10 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig }) => {
                   <div key={item.name} className="div-card" style={{ borderLeftColor: item.color }}>
                     <div className="div-card-title">
                       <span className="div-card-rank">{item.rank}. {item.name}</span>
-                      <span className="div-card-mm" style={{ color: item.darkColor }}>{item.total.toFixed(1)} M/M</span>
+                      <span className="div-card-mm" style={{ color: item.darkColor }}>
+                        {item.total.toFixed(1)} M/M
+                        {item.diff != null && <span className="div-card-diff" style={{ color: item.darkColor }}>({item.diff >= 0 ? '▲' : '▼'}{Math.abs(item.diff).toFixed(1)})</span>}
+                      </span>
                     </div>
                     {item.detail && (
                       <div className="div-card-detail">{item.detail}</div>
@@ -172,10 +203,10 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig }) => {
             </div>
           </div>
 
-          {/* Panel 2: 3M Trend */}
+          {/* Panel 2: 4M Trend */}
           <div className="gpd-panel">
             <div className="gpd-panel-header">
-              <h3>3M Trend</h3>
+              <h3>4M Trend</h3>
               <div className="gpd-controls">
                 <Toggle
                   options={[
@@ -209,6 +240,7 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig }) => {
                   orgDepth={orgDepth}
                   highlightedLabel={hlLabel}
                   onHighlight={setHlLabel}
+                  lastBarWeeks={tmMode === 'monthly' ? lastMonthWeeks : 0}
                 />
               </div>
             </div>

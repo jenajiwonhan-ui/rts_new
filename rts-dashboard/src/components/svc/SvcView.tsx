@@ -27,6 +27,7 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
   const pLabel = (name: string) => productLabelMap[name] || name;
   const [tmMode, setTmMode] = useState<'monthly' | 'weekly'>('monthly');
   const [hlLabel, setHlLabel] = useState<string | null>(null);
+  const [snapYm, setSnapYm] = useState<string | null>(null);
 
   // Filter detail for this service org
   const detail = useMemo(() => {
@@ -44,6 +45,7 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
   const mRange = useMemo(() => getLastNMonths(YM, 4), []);
   const rangeDetail = useMemo(() => detail.filter(d => mRange.includes(d.ym)), [detail, mRange]);
   const wpm = useMemo(() => getWeeksPerMonth(rangeDetail), [rangeDetail]);
+  const lastMonthWeeks = mRange.length > 0 ? (wpm[mRange[mRange.length - 1]] || 0) : 0;
 
   // Bar chart data
   const barData = useMemo(() => {
@@ -77,9 +79,13 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
     }
   }, [rangeDetail, tmMode, mRange, wpm]);
 
-  // Pie data (previous month)
+  // Snapshot month: default to previous month
+  const defaultSnapYm = useMemo(() => mRange.length >= 2 ? mRange[mRange.length - 2] : mRange[mRange.length - 1], [mRange]);
+  const activeSnapYm = snapYm || defaultSnapYm;
+
+  // Pie data (snapshot month)
   const pieData = useMemo(() => {
-    const prevYm = mRange.length >= 2 ? mRange[mRange.length - 2] : mRange[mRange.length - 1];
+    const prevYm = activeSnapYm;
     const prevDetail = rangeDetail.filter(d => d.ym === prevYm);
     const prevWpm = getWeeksPerMonth(prevDetail);
     const prodTotals: Record<string, number> = {};
@@ -101,9 +107,33 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
       data: sorted.map(e => e[1]),
       colors: sorted.map(e => prodColors.colorMap[e[0]] || '#ccc'),
       top: sorted,
-      title: `${ymLabel(prevYm)} Snapshot`,
+      title: 'Monthly Snapshot',
     };
-  }, [rangeDetail, mRange]);
+  }, [rangeDetail, activeSnapYm]);
+
+  // Previous month data for diff calculation
+  const prevSnapTotals = useMemo(() => {
+    const snapIdx = mRange.indexOf(activeSnapYm);
+    if (snapIdx <= 0) return {};
+    const prevYm = mRange[snapIdx - 1];
+    const prevDetail = rangeDetail.filter(d => d.ym === prevYm);
+    const prevWpm = getWeeksPerMonth(prevDetail);
+    const gpdTot: Record<string, number> = {};
+    let etcTot = 0, npTot = 0, oofTot = 0;
+    for (const d of prevDetail) {
+      const w = prevWpm[d.ym] || 1;
+      const val = d.tot / w;
+      if (d.p === 'Non-product') { npTot += val; continue; }
+      if (d.p.indexOf('Out of Office') >= 0) { oofTot += val; continue; }
+      const grp = gpdGroups[d.p];
+      if (grp) {
+        gpdTot[grp.gpd] = (gpdTot[grp.gpd] || 0) + val;
+      } else {
+        etcTot += val;
+      }
+    }
+    return { ...gpdTot, __etc: etcTot, __np: npTot, __oof: oofTot } as Record<string, number>;
+  }, [rangeDetail, activeSnapYm, mRange, gpdGroups]);
 
   // Ranking by GPD group (matching original renderSvcMix)
   const rankingData = useMemo(() => {
@@ -129,25 +159,27 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
     Object.values(etcProducts).forEach(v => { etcTotal += v; });
     const etcSorted = Object.entries(etcProducts).sort((a, b) => b[1] - a[1]);
 
-    const items: { name: string; total: number; sub: string; clr: string }[] = [];
+    const items: { name: string; total: number; diff: number | null; sub: string; clr: string }[] = [];
 
     // product_owner 그룹별: M/M 기준 내림차순 순위 (1~4)
     const gpdOrder = Object.keys(gpdTotals).sort((a, b) => gpdTotals[b].total - gpdTotals[a].total);
     gpdOrder.forEach((g, idx) => {
       const prods = gpdTotals[g].products.sort((a, b) => b.val - a.val);
       const subStr = prods.map((p, i) => `${i + 1}. ${p.name} (${p.val.toFixed(1)})`).join('  |  ');
-      items.push({ name: `${idx + 1}. ${g}`, total: gpdTotals[g].total, sub: subStr, clr: GPD_CLR(g) });
+      const prev = prevSnapTotals[g];
+      items.push({ name: `${idx + 1}. ${g}`, total: gpdTotals[g].total, diff: prev != null ? gpdTotals[g].total - prev : null, sub: subStr, clr: GPD_CLR(g) });
     });
     // 하단 고정: Other → Non-product → Out of Office
     if (etcTotal > 0) {
       const etcSub = etcSorted.slice(0, 3).map((e, i) => `${i + 1}. ${pLabel(e[0])} (${e[1].toFixed(1)})`).join('  |  ');
-      items.push({ name: 'Other', total: etcTotal, sub: etcSub, clr: '#8e9aaf' });
+      const prev = prevSnapTotals.__etc;
+      items.push({ name: 'Other', total: etcTotal, diff: prev != null ? etcTotal - prev : null, sub: etcSub, clr: '#8e9aaf' });
     }
-    if (npTotal > 0) items.push({ name: pLabel('Non-product'), total: npTotal, sub: '', clr: NPC });
-    if (oofTotal > 0) items.push({ name: pLabel('휴가(Out of Office)'), total: oofTotal, sub: '', clr: OOF });
+    if (npTotal > 0) { const prev = prevSnapTotals.__np; items.push({ name: pLabel('Non-product'), total: npTotal, diff: prev != null ? npTotal - prev : null, sub: '', clr: NPC }); }
+    if (oofTotal > 0) { const prev = prevSnapTotals.__oof; items.push({ name: pLabel('휴가(Out of Office)'), total: oofTotal, diff: prev != null ? oofTotal - prev : null, sub: '', clr: OOF }); }
 
     return items;
-  }, [pieData.top, gpdGroups, productLabelMap]);
+  }, [pieData.top, gpdGroups, productLabelMap, prevSnapTotals]);
 
   return (
     <div className="content">
@@ -160,6 +192,9 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
           <div className="gpd-panel">
             <div className="gpd-panel-header">
               <h3>{pieData.title}</h3>
+              <select className="fi" value={activeSnapYm} onChange={e => setSnapYm(e.target.value)}>
+                {mRange.map(ym => <option key={ym} value={ym}>{ymLabel(ym)}</option>)}
+              </select>
             </div>
             <div className="gpd-mix-row">
               <div className="gpd-mix-rank">
@@ -167,7 +202,10 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
                   <div key={item.name} className="div-card" style={{ borderLeftColor: item.clr }}>
                     <div className="div-card-title">
                       <span className="div-card-rank">{item.name}</span>
-                      <span className="div-card-mm" style={{ color: darkenHex(item.clr, 40) }}>{item.total.toFixed(1)} M/M</span>
+                      <span className="div-card-mm" style={{ color: darkenHex(item.clr, 40) }}>
+                        {item.total.toFixed(1)} M/M
+                        {item.diff != null && <span className="div-card-diff" style={{ color: darkenHex(item.clr, 40) }}>({item.diff >= 0 ? '▲' : '▼'}{Math.abs(item.diff).toFixed(1)})</span>}
+                      </span>
                     </div>
                     {item.sub && <div className="div-card-detail">{item.sub}</div>}
                   </div>
@@ -184,10 +222,10 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
             </div>
           </div>
 
-          {/* Panel 2: 3M Trend */}
+          {/* Panel 2: 4M Trend */}
           <div className="gpd-panel">
             <div className="gpd-panel-header">
-              <h3>3M Trend</h3>
+              <h3>4M Trend</h3>
               <div className="gpd-controls">
                 <Toggle
                   options={[
@@ -212,6 +250,7 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
                   isSvc={true}
                   highlightedLabel={hlLabel}
                   onHighlight={setHlLabel}
+                  lastBarWeeks={tmMode === 'monthly' ? lastMonthWeeks : 0}
                 />
               </div>
             </div>

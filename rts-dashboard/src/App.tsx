@@ -9,7 +9,7 @@ import GpdView from './components/gpd/GpdView';
 import SvcView from './components/svc/SvcView';
 import './App.css';
 
-type ViewMode = 'home' | 'svc' | 'gpd';
+type ViewMode = 'home' | 'svc' | 'gpd' | 'npd';
 
 const App: React.FC = () => {
   const {
@@ -37,11 +37,25 @@ const App: React.FC = () => {
 
   const isGpd = useCallback((org: string) => poOwnerIds.includes(org), [poOwnerIds]);
 
+  // Non-product 제품 목록: product_owner가 없는 제품
+  const NPD_KEY = '__non_product__';
+  const npdProducts = useMemo(() => {
+    const owned = new Set<string>();
+    for (const p of products) {
+      if (p.product_owner) owned.add(p.name);
+    }
+    return products.filter(p => !owned.has(p.name)).map(p => p.name);
+  }, [products]);
+
   const handleSelectOrg = useCallback((org: string) => {
     loadDetail();
     setActiveOrg(org);
     mainRef.current?.scrollTo(0, 0);
-    if (isGpd(org)) {
+    if (org === NPD_KEY) {
+      setViewMode('npd');
+      setCurGpdProd(null);
+      setCurSvcLv2(null);
+    } else if (isGpd(org)) {
       setViewMode('gpd');
       setCurGpdProd(null);
       setCurSvcLv2(null);
@@ -64,10 +78,20 @@ const App: React.FC = () => {
     setCurGpdProd(prod);
   }, []);
 
+  const handleSidebarGpdProduct = useCallback((owner: string, product: string) => {
+    loadDetail();
+    setActiveOrg(owner);
+    setViewMode('gpd');
+    setCurGpdProd(product);
+    setCurSvcLv2(null);
+    mainRef.current?.scrollTo(0, 0);
+  }, [loadDetail]);
+
   const handleSvcLv2Change = useCallback((lv2: string | null, lvl: string) => {
     setCurSvcLv2(lv2);
     setCurSvcLvl(lvl);
   }, []);
+
 
   // Product tabs for GPD
   const gpdTabs = useMemo(() => {
@@ -106,13 +130,14 @@ const App: React.FC = () => {
   // Breadcrumb parts
   const breadcrumbParts = useMemo(() => {
     if (viewMode === 'home') return [];
+    if (viewMode === 'npd') return ['Non-product', 'Overview'];
     if (viewMode === 'gpd') {
       const parts = [activeOrg || ''];
       if (curGpdProd) {
         const game = poGames.find(g => g.gameName === curGpdProd);
         parts.push(game?.gameShort || curGpdProd);
       } else {
-        parts.push('All');
+        parts.push('All Products');
       }
       return parts;
     }
@@ -136,34 +161,19 @@ const App: React.FC = () => {
     <div className="app">
       <Header />
       <Breadcrumb parts={breadcrumbParts} onHomeClick={handleHome} />
+
       <div className="app-layout">
         <Sidebar
           activeOrg={activeOrg}
+          activeProduct={curGpdProd}
           onSelectOrg={handleSelectOrg}
-          onHome={handleHome}
+          onSelectGpdProduct={handleSidebarGpdProduct}
           orgLv1={orgLv1}
           poOwnerIds={poOwnerIds}
+          poGames={poGames}
+          npdKey={NPD_KEY}
         />
         <div className="main-area" ref={mainRef}>
-          {viewMode === 'gpd' && gpdTabs.length > 0 && (
-            <div className="filter-bar">
-              <button
-                className={`prod-tab ${curGpdProd === null ? 'active' : ''}`}
-                onClick={() => handleGpdProdSelect(null)}
-              >
-                All
-              </button>
-              {gpdTabs.map(tab => (
-                <button
-                  key={tab.short}
-                  className={`prod-tab ${curGpdProd === tab.full ? 'active' : ''}`}
-                  onClick={() => handleGpdProdSelect(tab.full)}
-                >
-                  {tab.short}
-                </button>
-              ))}
-            </div>
-          )}
 
           {viewMode === 'svc' && svcDropdownOptions.length > 0 && (
             <div className="filter-bar">
@@ -193,6 +203,15 @@ const App: React.FC = () => {
             </div>
           )}
           {viewMode === 'home' && <HomePage />}
+          {!detailLoading && viewMode === 'npd' && (
+            <GpdView
+              key="npd"
+              org={NPD_KEY}
+              product={null}
+              gpdConfig={gpdConfig}
+              npdProducts={npdProducts}
+            />
+          )}
           {!detailLoading && viewMode === 'gpd' && activeOrg && (
             <GpdView
               key={`${activeOrg}-${curGpdProd}`}

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { SvcDropdownOption } from './types';
 import { useData } from './contexts/DataContext';
 import Header from './components/layout/Header';
@@ -22,6 +22,7 @@ const App: React.FC = () => {
   const [curGpdProd, setCurGpdProd] = useState<string | null>(null);
   const [curSvcLv2, setCurSvcLv2] = useState<string | null>(null);
   const [curSvcLvl, setCurSvcLvl] = useState<string>('1');
+  const mainRef = useRef<HTMLDivElement>(null);
 
   const orgLv1 = useMemo(() => allOrgNodes.filter(n => n.level === 1), [allOrgNodes]);
 
@@ -39,6 +40,7 @@ const App: React.FC = () => {
   const handleSelectOrg = useCallback((org: string) => {
     loadDetail();
     setActiveOrg(org);
+    mainRef.current?.scrollTo(0, 0);
     if (isGpd(org)) {
       setViewMode('gpd');
       setCurGpdProd(null);
@@ -142,7 +144,7 @@ const App: React.FC = () => {
           orgLv1={orgLv1}
           poOwnerIds={poOwnerIds}
         />
-        <div className="main-area">
+        <div className="main-area" ref={mainRef}>
           {viewMode === 'gpd' && gpdTabs.length > 0 && (
             <div className="filter-bar">
               <button

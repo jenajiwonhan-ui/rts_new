@@ -44,7 +44,8 @@ const gpdTopLabelPlugin = {
     const isSvc = !!customOpts.isSvc;
     const hl = customOpts.highlightedLabel || null;
     const lbWeeks = customOpts.lastBarWeeks || 0;
-    const showLastBar = lbWeeks >= 3;
+    const lbDayOfWeek = customOpts.lastBarDayOfWeek || 7;
+    const showLastBar = lbWeeks > 0 ? lbWeeks >= 3 : lbDayOfWeek > 3;
 
     // ── Pre-compute per-bar totals ──
     const barTotals: number[] = [];
@@ -59,9 +60,9 @@ const gpdTopLabelPlugin = {
     // ── Last bar is excluded (incomplete period) ──
     const lastBar = barCount - 1;
 
-    // ── Pre-compute which datasets qualify for labels (majority of bars must pass) ──
+    // ── Pre-compute which datasets qualify for labels (75% of bars must pass) ──
     const dsVisible: boolean[] = [];
-    const checkBars = showLastBar ? barCount : lastBar; // exclude last bar if < 3 weeks
+    const checkBars = showLastBar ? barCount : lastBar;
     for (let di = 0; di < dsCount; di++) {
       if (hl && chart.data.datasets[di].label !== hl) { dsVisible.push(false); continue; }
       const isHl = hl && chart.data.datasets[di].label === hl;
@@ -78,7 +79,7 @@ const gpdTopLabelPlugin = {
         const pct = total > 0 ? (v / total) * 100 : 0;
         if (pct >= 10 && segH >= 20) passCount++;
       }
-      dsVisible.push(checkBars > 0 && passCount > checkBars / 2);
+      dsVisible.push(checkBars > 0 && passCount >= checkBars * 0.75);
     }
 
     for (let bi = 0; bi < barCount; bi++) {
@@ -265,12 +266,13 @@ const segLabelsPlugin = {
     const customOpts2 = (chart.options as any).__custom || {};
     const hl = customOpts2.highlightedLabel || null;
     const lbWeeks2 = customOpts2.lastBarWeeks || 0;
-    const showLastBar2 = lbWeeks2 >= 3;
+    const lbDayOfWeek2 = customOpts2.lastBarDayOfWeek || 7;
+    const showLastBar2 = lbWeeks2 > 0 ? lbWeeks2 >= 3 : lbDayOfWeek2 > 3;
 
     const barCount2 = chart.getDatasetMeta(0)?.data.length || 0;
     const lastBar2 = barCount2 - 1;
 
-    // Pre-compute which datasets qualify (majority of bars must pass)
+    // Pre-compute which datasets qualify (75% of bars must pass)
     const checkBars2 = showLastBar2 ? barCount2 : lastBar2;
     const dsVis2: boolean[] = [];
     for (let di = 0; di < dsCount; di++) {
@@ -293,7 +295,7 @@ const segLabelsPlugin = {
         const pct = total > 0 ? (v / total) * 100 : 0;
         if (pct >= 10 && segH >= 20) passCount++;
       }
-      dsVis2.push(checkBars2 > 0 && passCount > checkBars2 / 2);
+      dsVis2.push(checkBars2 > 0 && passCount >= checkBars2 * 0.75);
     }
 
     for (let di = 0; di < dsCount; di++) {
@@ -373,6 +375,7 @@ interface StackedBarChartProps {
   highlightedLabel?: string | null;
   onHighlight?: (label: string | null) => void;
   lastBarWeeks?: number;
+  lastBarDayOfWeek?: number;
 }
 
 /* ─── helper: apply highlight opacity to a hex color ─── */
@@ -391,6 +394,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
   mode = 'svcGpd', timeMode = 'monthly', maxY,
   orgDepth = 'l', isSvc = false, highlightedLabel, onHighlight,
   lastBarWeeks = 0,
+  lastBarDayOfWeek = 7,
 }) => {
   const [interacted, setInteracted] = React.useState(false);
 
@@ -447,7 +451,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
         responsive: true,
         maintainAspectRatio: false,
         layout: { padding: { bottom: 12 } },
-        __custom: { orgDepth, isSvc, highlightedLabel, lastBarWeeks },
+        __custom: { orgDepth, isSvc, highlightedLabel, lastBarWeeks, lastBarDayOfWeek },
         animation: animationOpts,
         transitions: transitionOpts,
         onHover: handleHover,
@@ -488,7 +492,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
         responsive: true,
         maintainAspectRatio: false,
         animation: animationOpts,
-        __custom: { highlightedLabel, lastBarWeeks },
+        __custom: { highlightedLabel, lastBarWeeks, lastBarDayOfWeek },
         onHover: handleHover,
         hover: commonHover,
         plugins: {

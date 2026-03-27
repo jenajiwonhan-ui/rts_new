@@ -46,6 +46,8 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
   const rangeDetail = useMemo(() => detail.filter(d => mRange.includes(d.ym)), [detail, mRange]);
   const wpm = useMemo(() => getWeeksPerMonth(rangeDetail), [rangeDetail]);
   const lastMonthWeeks = mRange.length > 0 ? (wpm[mRange[mRange.length - 1]] || 0) : 0;
+  // Day of week (Mon=1 ... Sun=7)
+  const dayOfWeek = useMemo(() => { const d = new Date().getDay(); return d === 0 ? 7 : d; }, []);
 
   // Bar chart data
   const barData = useMemo(() => {
@@ -111,10 +113,11 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
     };
   }, [rangeDetail, activeSnapYm]);
 
-  // Previous month data for diff calculation
+  // Previous month data for diff calculation (null = first month, no diff)
+  const isFirstMonth = mRange.indexOf(activeSnapYm) === 0;
   const prevSnapTotals = useMemo(() => {
     const snapIdx = mRange.indexOf(activeSnapYm);
-    if (snapIdx <= 0) return {};
+    if (snapIdx <= 0) return null;
     const prevYm = mRange[snapIdx - 1];
     const prevDetail = rangeDetail.filter(d => d.ym === prevYm);
     const prevWpm = getWeeksPerMonth(prevDetail);
@@ -132,7 +135,7 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
         etcTot += val;
       }
     }
-    return { ...gpdTot, __etc: etcTot, __np: npTot, __oof: oofTot } as Record<string, number>;
+    return { ...gpdTot, __etc: etcTot, __np: npTot, __oof: oofTot } as Record<string, number> | null;
   }, [rangeDetail, activeSnapYm, mRange, gpdGroups]);
 
   // Ranking by GPD group (matching original renderSvcMix)
@@ -166,17 +169,17 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
     gpdOrder.forEach((g, idx) => {
       const prods = gpdTotals[g].products.sort((a, b) => b.val - a.val);
       const subStr = prods.map((p, i) => `${i + 1}. ${p.name} (${p.val.toFixed(1)})`).join('  |  ');
-      const prev = prevSnapTotals[g];
-      items.push({ name: `${idx + 1}. ${g}`, total: gpdTotals[g].total, diff: prev != null ? gpdTotals[g].total - prev : null, sub: subStr, clr: GPD_CLR(g) });
+      const diff = prevSnapTotals ? gpdTotals[g].total - (prevSnapTotals[g] || 0) : null;
+      items.push({ name: `${idx + 1}. ${g}`, total: gpdTotals[g].total, diff, sub: subStr, clr: GPD_CLR(g) });
     });
     // 하단 고정: Other → Non-product → Out of Office
     if (etcTotal > 0) {
       const etcSub = etcSorted.slice(0, 3).map((e, i) => `${i + 1}. ${pLabel(e[0])} (${e[1].toFixed(1)})`).join('  |  ');
-      const prev = prevSnapTotals.__etc;
-      items.push({ name: 'Other', total: etcTotal, diff: prev != null ? etcTotal - prev : null, sub: etcSub, clr: '#8e9aaf' });
+      const diff = prevSnapTotals ? etcTotal - (prevSnapTotals.__etc || 0) : null;
+      items.push({ name: 'Other', total: etcTotal, diff, sub: etcSub, clr: '#8e9aaf' });
     }
-    if (npTotal > 0) { const prev = prevSnapTotals.__np; items.push({ name: pLabel('Non-product'), total: npTotal, diff: prev != null ? npTotal - prev : null, sub: '', clr: NPC }); }
-    if (oofTotal > 0) { const prev = prevSnapTotals.__oof; items.push({ name: pLabel('휴가(Out of Office)'), total: oofTotal, diff: prev != null ? oofTotal - prev : null, sub: '', clr: OOF }); }
+    if (npTotal > 0) { const diff = prevSnapTotals ? npTotal - (prevSnapTotals.__np || 0) : null; items.push({ name: pLabel('Non-product'), total: npTotal, diff, sub: '', clr: NPC }); }
+    if (oofTotal > 0) { const diff = prevSnapTotals ? oofTotal - (prevSnapTotals.__oof || 0) : null; items.push({ name: pLabel('휴가(Out of Office)'), total: oofTotal, diff, sub: '', clr: OOF }); }
 
     return items;
   }, [pieData.top, gpdGroups, productLabelMap, prevSnapTotals]);
@@ -251,6 +254,7 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
                   highlightedLabel={hlLabel}
                   onHighlight={setHlLabel}
                   lastBarWeeks={tmMode === 'monthly' ? lastMonthWeeks : 0}
+                  lastBarDayOfWeek={tmMode === 'weekly' ? dayOfWeek : 7}
                 />
               </div>
             </div>

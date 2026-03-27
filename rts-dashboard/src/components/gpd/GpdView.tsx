@@ -40,6 +40,7 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig, npdProducts 
   const rangeDetail = useMemo(() => detail.filter(d => mRange.includes(d.ym)), [detail, mRange]);
   const wpm = useMemo(() => getWeeksPerMonth(rangeDetail), [rangeDetail]);
   const lastMonthWeeks = mRange.length > 0 ? (wpm[mRange[mRange.length - 1]] || 0) : 0;
+  const dayOfWeek = useMemo(() => { const d = new Date().getDay(); return d === 0 ? 7 : d; }, []);
 
   // Bar chart data
   const barData = useMemo(() => {
@@ -105,10 +106,10 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig, npdProducts 
     };
   }, [rangeDetail, activeSnapYm]);
 
-  // Previous month data for diff
+  // Previous month data for diff (null = first month)
   const prevSnapLv1Totals = useMemo(() => {
     const snapIdx = mRange.indexOf(activeSnapYm);
-    if (snapIdx <= 0) return {};
+    if (snapIdx <= 0) return null;
     const prevYm = mRange[snapIdx - 1];
     const prevDetail = rangeDetail.filter(d => d.ym === prevYm);
     const prevWpm = getWeeksPerMonth(prevDetail);
@@ -154,8 +155,7 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig, npdProducts 
       const lv2Str = lv2Sorted.slice(0, 3).map(([name, s2], si) =>
         `${si + 1}. ${name} (${s2.total.toFixed(1)})`
       ).join('  |  ');
-      const prev = prevSnapLv1Totals[lv1];
-      const diff = prev != null ? data.total - prev : null;
+      const diff = prevSnapLv1Totals ? data.total - (prevSnapLv1Totals[lv1] || 0) : null;
 
       return { rank: i + 1, name: lv1, total: data.total, diff, color: clr, darkColor: darkenHex(clr, 60), detail: lv2Str };
     });
@@ -241,6 +241,7 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig, npdProducts 
                   highlightedLabel={hlLabel}
                   onHighlight={setHlLabel}
                   lastBarWeeks={tmMode === 'monthly' ? lastMonthWeeks : 0}
+                  lastBarDayOfWeek={tmMode === 'weekly' ? dayOfWeek : 7}
                 />
               </div>
             </div>

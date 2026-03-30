@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { DetailRecord } from '../../types';
 import {
-  getWeeksPerMonth, buildOrgColors,
+  getWeeksPerMonth, getDataWeeksPerMonth, buildOrgColors,
   getOrgKey, getWeeksInRange,
 } from '../../utils/aggregation';
 import { ymLabel, getLastNMonths, fmtVal } from '../../utils/formatters';
@@ -39,7 +39,8 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig, npdProducts 
   const mRange = useMemo(() => getLastNMonths(YM, 4), []);
   const rangeDetail = useMemo(() => detail.filter(d => mRange.includes(d.ym)), [detail, mRange]);
   const wpm = useMemo(() => getWeeksPerMonth(rangeDetail), [rangeDetail]);
-  const lastMonthWeeks = mRange.length > 0 ? (wpm[mRange[mRange.length - 1]] || 0) : 0;
+  const dataWpm = useMemo(() => getDataWeeksPerMonth(rangeDetail), [rangeDetail]);
+  const lastMonthWeeks = mRange.length > 0 ? (dataWpm[mRange[mRange.length - 1]] || 0) : 0;
   const dayOfWeek = useMemo(() => { const d = new Date().getDay(); return d === 0 ? 7 : d; }, []);
 
   // Bar chart data

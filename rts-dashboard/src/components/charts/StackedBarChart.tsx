@@ -46,6 +46,11 @@ const gpdTopLabelPlugin = {
     const lbWeeks = customOpts.lastBarWeeks || 0;
     const lbDayOfWeek = customOpts.lastBarDayOfWeek || 7;
     const showLastBar = lbWeeks > 0 ? lbWeeks >= 3 : lbDayOfWeek > 3;
+    const isWeekly = customOpts.timeMode === 'weekly';
+    const totalFont = isWeekly ? '600 11px Pretendard, sans-serif' : '600 14px Pretendard, sans-serif';
+    const diffFont = isWeekly ? '400 9px Pretendard, sans-serif' : '400 11px Pretendard, sans-serif';
+    const segFont = isWeekly ? '600 11px Pretendard, sans-serif' : '600 14px Pretendard, sans-serif';
+    const segDiffFont = isWeekly ? '400 9px Pretendard, sans-serif' : '400 11px Pretendard, sans-serif';
 
     // ── Pre-compute per-bar totals ──
     const barTotals: number[] = [];
@@ -99,7 +104,7 @@ const gpdTopLabelPlugin = {
       ctx.save();
 
       // ── Total label (always shown) ──
-      ctx.font = '600 14px Pretendard, sans-serif';
+      ctx.font = totalFont;
       ctx.fillStyle = '#5f6280';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
@@ -110,38 +115,37 @@ const gpdTopLabelPlugin = {
         const diffText = ` (${diff >= 0 ? '▲' : '▼'}${Math.abs(diff).toFixed(1)})`;
 
         {
-          ctx.font = '600 14px Pretendard, sans-serif';
+          ctx.font = totalFont;
           const totalW = ctx.measureText(totalText).width;
-          ctx.font = '400 11px Pretendard, sans-serif';
+          ctx.font = diffFont;
           const diffW = ctx.measureText(diffText).width;
           const fullW = totalW + diffW;
           const startX = lastMeta.data[bi].x - fullW / 2;
 
           ctx.textAlign = 'left';
-          ctx.font = '600 14px Pretendard, sans-serif';
+          ctx.font = totalFont;
           ctx.fillStyle = '#5f6280';
           ctx.fillText(totalText, startX, topY - 10);
 
-          ctx.font = '400 11px Pretendard, sans-serif';
+          ctx.font = diffFont;
           ctx.fillStyle = diff >= 0 ? '#4a8cb8' : '#c07060';
           ctx.fillText(diffText, startX + totalW, topY - 10);
         }
       } else if (barCount > 1) {
-        // First bar with no previous data: show total + dash
         const diffText = ' (-)';
-        ctx.font = '600 14px Pretendard, sans-serif';
+        ctx.font = totalFont;
         const totalW = ctx.measureText(totalText).width;
-        ctx.font = '400 11px Pretendard, sans-serif';
+        ctx.font = diffFont;
         const diffW = ctx.measureText(diffText).width;
         const fullW = totalW + diffW;
         const startX = lastMeta.data[bi].x - fullW / 2;
 
         ctx.textAlign = 'left';
-        ctx.font = '600 14px Pretendard, sans-serif';
+        ctx.font = totalFont;
         ctx.fillStyle = '#5f6280';
         ctx.fillText(totalText, startX, topY - 10);
 
-        ctx.font = '400 11px Pretendard, sans-serif';
+        ctx.font = diffFont;
         ctx.fillStyle = '#9498b0';
         ctx.fillText(diffText, startX + totalW, topY - 10);
       } else {
@@ -189,15 +193,15 @@ const gpdTopLabelPlugin = {
           const valText = v.toFixed(1);
           const diffText = ` (${segDiff >= 0 ? '▲' : '▼'}${Math.abs(segDiff).toFixed(1)})`;
 
-          ctx.font = '600 14px Pretendard, sans-serif';
+          ctx.font = segFont;
           const valW = ctx.measureText(valText).width;
-          ctx.font = '400 11px Pretendard, sans-serif';
+          ctx.font = segDiffFont;
           const diffW = ctx.measureText(diffText).width;
           const fullW = valW + diffW;
           const startX = bar.x - fullW / 2;
 
           if (needChip) {
-            const chipH = 18, chipPad = 4, r = 3;
+            const chipH = isWeekly ? 14 : 18, chipPad = isWeekly ? 3 : 4, r = 3;
             const cx = bar.x - (fullW + chipPad * 2) / 2;
             const cyTop = cy - chipH / 2;
             ctx.beginPath();
@@ -208,31 +212,31 @@ const gpdTopLabelPlugin = {
 
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'left';
-            ctx.font = '600 14px Pretendard, sans-serif';
+            ctx.font = segFont;
             ctx.fillStyle = valColor;
             ctx.fillText(valText, chipStartX, cy);
 
-            ctx.font = '400 11px Pretendard, sans-serif';
+            ctx.font = segDiffFont;
             ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
             ctx.fillText(diffText, chipStartX + valW, cy);
           } else {
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'left';
-            ctx.font = '600 14px Pretendard, sans-serif';
+            ctx.font = segFont;
             ctx.fillStyle = valColor;
             ctx.fillText(valText, startX, cy);
 
-            ctx.font = '400 11px Pretendard, sans-serif';
+            ctx.font = segDiffFont;
             ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
             ctx.fillText(diffText, startX + valW, cy);
           }
         } else {
-          ctx.font = '600 14px Pretendard, sans-serif';
+          ctx.font = segFont;
           const valText = v.toFixed(1);
 
           if (needChip) {
             const tw = ctx.measureText(valText).width;
-            const chipH = 18, chipPad = 4, r = 3;
+            const chipH = isWeekly ? 14 : 18, chipPad = isWeekly ? 3 : 4, r = 3;
             const cx = bar.x - (tw + chipPad * 2) / 2;
             const cyTop = cy - chipH / 2;
             ctx.beginPath();
@@ -268,6 +272,8 @@ const segLabelsPlugin = {
     const lbWeeks2 = customOpts2.lastBarWeeks || 0;
     const lbDayOfWeek2 = customOpts2.lastBarDayOfWeek || 7;
     const showLastBar2 = lbWeeks2 > 0 ? lbWeeks2 >= 3 : lbDayOfWeek2 > 3;
+    const isWeekly2 = customOpts2.timeMode === 'weekly';
+    const segFont2 = isWeekly2 ? '500 11px Pretendard, sans-serif' : '500 14px Pretendard, sans-serif';
 
     const barCount2 = chart.getDatasetMeta(0)?.data.length || 0;
     const lastBar2 = barCount2 - 1;
@@ -320,7 +326,7 @@ const segLabelsPlugin = {
         const isDark = hexLum(bgc) < 0.45;
 
         ctx.save();
-        ctx.font = '500 14px Pretendard, sans-serif';
+        ctx.font = segFont2;
         const valText = v.toFixed(1);
         let cy: number;
         if (v <= 0) {
@@ -451,7 +457,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
         responsive: true,
         maintainAspectRatio: false,
         layout: { padding: { bottom: 12 } },
-        __custom: { orgDepth, isSvc, highlightedLabel, lastBarWeeks, lastBarDayOfWeek },
+        __custom: { orgDepth, isSvc, highlightedLabel, lastBarWeeks, lastBarDayOfWeek, timeMode },
         animation: animationOpts,
         transitions: transitionOpts,
         onHover: handleHover,
@@ -492,7 +498,7 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
         responsive: true,
         maintainAspectRatio: false,
         animation: animationOpts,
-        __custom: { highlightedLabel, lastBarWeeks, lastBarDayOfWeek },
+        __custom: { highlightedLabel, lastBarWeeks, lastBarDayOfWeek, timeMode },
         onHover: handleHover,
         hover: commonHover,
         plugins: {

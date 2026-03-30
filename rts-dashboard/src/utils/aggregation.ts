@@ -1,8 +1,61 @@
 import { DetailRecord, ColorInfo, TreeNode } from '../types';
 import { LV1_COLORS, LV1_ORDER, DEPT_PC, ORG_PC2, NPC, OOF, PC, GPD_PALETTES, isPubgProduct } from './colors';
 
-/** Count distinct weeks per month across detail records */
+/**
+ * Calculate the number of calendar weeks per month.
+ * A week (Mon–Sun) belongs to the month where 4+ of its days fall.
+ */
 export function getWeeksPerMonth(detail: DetailRecord[]): Record<string, number> {
+  // Collect unique months from data
+  const months = new Set<string>();
+  for (const d of detail) months.add(d.ym);
+
+  const result: Record<string, number> = {};
+  for (const ym of months) {
+    result[ym] = calendarWeeksInMonth(ym);
+  }
+  return result;
+}
+
+/** Count how many Mon–Sun weeks belong to a given "YYYY-MM" month (majority rule: 4+ days) */
+function calendarWeeksInMonth(ym: string): number {
+  const [y, m] = ym.split('-').map(Number);
+  const firstDay = new Date(y, m - 1, 1); // 1st of month
+  const lastDay = new Date(y, m, 0); // last day of month
+  const daysInMonth = lastDay.getDate();
+
+  // Find the Monday on or before the 1st
+  let mon = new Date(firstDay);
+  const dow = mon.getDay(); // 0=Sun, 1=Mon, ...
+  const offset = dow === 0 ? 6 : dow - 1; // days since Monday
+  mon.setDate(mon.getDate() - offset);
+
+  let count = 0;
+  while (true) {
+    // Count how many days of this Mon–Sun week fall in this month
+    let daysInThisMonth = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(mon);
+      d.setDate(d.getDate() + i);
+      if (d.getMonth() === m - 1 && d.getFullYear() === y) {
+        daysInThisMonth++;
+      }
+    }
+    if (daysInThisMonth >= 4) count++;
+
+    // Move to next Monday
+    mon.setDate(mon.getDate() + 7);
+    // If this Monday is past the last day + 6 (no overlap possible), stop
+    if (mon.getTime() > lastDay.getTime() + 6 * 86400000) break;
+    // If we already passed the month and no days overlap, stop
+    if (daysInThisMonth === 0) break;
+  }
+
+  return count || 1;
+}
+
+/** Count distinct weeks WITH DATA per month (for label visibility) */
+export function getDataWeeksPerMonth(detail: DetailRecord[]): Record<string, number> {
   const wpm: Record<string, Set<string>> = {};
   for (const d of detail) {
     if (!wpm[d.ym]) wpm[d.ym] = new Set();
@@ -12,7 +65,7 @@ export function getWeeksPerMonth(detail: DetailRecord[]): Record<string, number>
   }
   const result: Record<string, number> = {};
   for (const [ym, ws] of Object.entries(wpm)) {
-    result[ym] = ws.size || 1;
+    result[ym] = ws.size || 0;
   }
   return result;
 }

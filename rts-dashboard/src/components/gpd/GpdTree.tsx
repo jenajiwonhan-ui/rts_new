@@ -58,6 +58,21 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
 
   const tree = useMemo(() => buildTree(filteredDetail, tmMode, wpm), [filteredDetail, tmMode, wpm]);
 
+  // Detect old orgs: no data in previous month (based on ALL data)
+  const prevMonthOrgs = useMemo(() => {
+    if (YM.length < 2) return new Set<string>();
+    const prevYm = YM[YM.length - 2];
+    const active = new Set<string>();
+    for (const d of allDetail) {
+      if (d.ym === prevYm) {
+        active.add(d.lv1);
+        active.add(d.lv2);
+        active.add(d.lv3);
+      }
+    }
+    return active;
+  }, [allDetail, YM]);
+
   // Apply depth toggle: reset expand states based on tree structure
   useEffect(() => {
     setExpandedLv1(new Set(LV1_ORDER));
@@ -170,7 +185,7 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
     </>
   );
 
-  const renderMemberRow = (name: string, times: Record<string, number>, parentKey: string, orgFilter?: { lv1?: string; lv2?: string; lv3?: string }) => {
+  const renderMemberRow = (name: string, times: Record<string, number>, parentKey: string, orgFilter?: { lv1?: string; lv2?: string; lv3?: string }, isOld?: boolean) => {
     const personKey = `${parentKey}|${name}`;
     // 해당 조직 경로에 속하는 detail만 필터
     const filteredDetail = orgFilter
@@ -183,7 +198,7 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
       : detail;
     return (
       <React.Fragment key={personKey}>
-        <div className={`tree-row tree-zebra${expandedPersons.has(personKey) ? ' person-row-active' : ''}`}>
+        <div className={`tree-row tree-zebra${expandedPersons.has(personKey) ? ' person-row-active' : ''}${isOld ? ' tree-old' : ''}`}>
           <div className="tree-fixed">
             <div className="tree-row-name tree-member">
               <span
@@ -281,7 +296,11 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
         {/* Body */}
         {orderedTree.map(([lv1Key, lv1Node]) => {
           const isLv1Open = expandedLv1.has(lv1Key);
-          const lv2Entries = sortByTotal(Object.entries(lv1Node.subs), timeKeys);
+          const lv2Sorted = sortByTotal(Object.entries(lv1Node.subs), timeKeys);
+          const lv2Direct = lv2Sorted.filter(([k]) => k === '(direct)');
+          const lv2Active = lv2Sorted.filter(([k]) => k !== '(direct)' && prevMonthOrgs.has(k));
+          const lv2Old = lv2Sorted.filter(([k]) => k !== '(direct)' && !prevMonthOrgs.has(k));
+          const lv2Entries = [...lv2Direct, ...lv2Active, ...lv2Old];
           const directMembers = Object.entries(lv1Node.directMembers).sort(
             (a, b) => timeKeys.reduce((s, k) => s + (b[1][k] || 0), 0) - timeKeys.reduce((s, k) => s + (a[1][k] || 0), 0)
           );
@@ -312,18 +331,23 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
                   {lv2Entries.map(([lv2Key, lv2Node]) => {
                     const lv2FullKey = `${lv1Key}|${lv2Key}`;
                     const isLv2Open = expandedLv2.has(lv2FullKey);
-                    const lv3Entries = sortByTotal(Object.entries(lv2Node.subs), timeKeys);
+                    const lv3Sorted = sortByTotal(Object.entries(lv2Node.subs), timeKeys);
+                    const lv3Direct = lv3Sorted.filter(([k]) => k === '(direct)');
+                    const lv3Active = lv3Sorted.filter(([k]) => k !== '(direct)' && prevMonthOrgs.has(k));
+                    const lv3Old = lv3Sorted.filter(([k]) => k !== '(direct)' && !prevMonthOrgs.has(k));
+                    const lv3Entries = [...lv3Direct, ...lv3Active, ...lv3Old];
                     const lv2DirectMembers = Object.entries(lv2Node.directMembers).sort(
                       (a, b) => timeKeys.reduce((s, k) => s + (b[1][k] || 0), 0) - timeKeys.reduce((s, k) => s + (a[1][k] || 0), 0)
                     );
 
+                    const isOldLv2 = !prevMonthOrgs.has(lv2Key);
                     return (
                       <React.Fragment key={lv2FullKey}>
-                        <div className="tree-row tree-lv2-row">
+                        <div className={`tree-row tree-lv2-row${isOldLv2 ? ' tree-old' : ''}`}>
                           <div className="tree-fixed">
                             <div className="tree-row-name tree-dept" onClick={() => toggleLv2(lv2FullKey)} style={{ cursor: 'pointer' }}>
                               <span className="tree-tgl">{isLv2Open ? '▼' : '▶'}</span>
-                              {lv2Key}
+                              {isOldLv2 ? `(old) ${lv2Key}` : lv2Key}
                             </div>
                           </div>
                           {renderTimeVals(lv2Node.times)}
@@ -331,6 +355,10 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
 
                         {isLv2Open && (
                           <>
+                            {/* Lv.2 직속 멤버 */}
+                            {lv2DirectMembers.map(([name, times]) =>
+                              renderMemberRow(name, times, lv2FullKey, { lv1: lv1Key, lv2: lv2Key }, isOldLv2)
+                            )}
                             {lv3Entries.map(([lv3Key, lv3Node]) => {
                               const lv3FullKey = `${lv2FullKey}|${lv3Key}`;
                               const isLv3Open = expandedLv3.has(lv3FullKey);
@@ -338,20 +366,21 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
                                 (a, b) => timeKeys.reduce((s, k) => s + (b[1][k] || 0), 0) - timeKeys.reduce((s, k) => s + (a[1][k] || 0), 0)
                               );
 
+                              const isOldLv3 = isOldLv2 || !prevMonthOrgs.has(lv3Key);
                               return (
                                 <React.Fragment key={lv3FullKey}>
-                                  <div className="tree-row tree-zebra">
+                                  <div className={`tree-row tree-zebra${isOldLv3 ? ' tree-old' : ''}`}>
                                     <div className="tree-fixed">
                                       <div className="tree-row-name tree-team" onClick={() => toggleLv3(lv3FullKey)} style={{ cursor: 'pointer' }}>
                                         <span className="tree-tgl">{isLv3Open ? '▼' : '▶'}</span>
-                                        {lv3Key}
+                                        {isOldLv3 ? `(old) ${lv3Key}` : lv3Key}
                                       </div>
                                     </div>
                                     {renderTimeVals(lv3Node.times)}
                                   </div>
 
                                   {isLv3Open && lv3Members.map(([name, times]) =>
-                                    renderMemberRow(name, times, lv3FullKey, { lv1: lv1Key, lv2: lv2Key, lv3: lv3Key })
+                                    renderMemberRow(name, times, lv3FullKey, { lv1: lv1Key, lv2: lv2Key, lv3: lv3Key }, isOldLv3)
                                   )}
                                 </React.Fragment>
                               );

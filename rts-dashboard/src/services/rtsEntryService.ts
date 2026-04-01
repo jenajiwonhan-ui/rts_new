@@ -44,7 +44,7 @@ export async function fetchRtsEntries(): Promise<RtsEntry[]> {
 
 interface OrgLevels { lv1: string; lv2: string; lv3: string; lv4: string }
 
-/** org_nodes로 name→레벨 매핑 구축 */
+/** org_nodes로 name→레벨 매핑 구축 (Lv.1은 alias로 표시) */
 function buildOrgLookup(orgNodes: OrgNode[]): Map<string, OrgLevels> {
   const byId = new Map(orgNodes.map(n => [n.id, n]));
   const lookup = new Map<string, OrgLevels>();
@@ -57,30 +57,22 @@ function buildOrgLookup(orgNodes: OrgNode[]): Map<string, OrgLevels> {
       cur = cur.parent_id ? byId.get(cur.parent_id) : undefined;
     }
 
+    // Lv.1은 alias(EPS 등) 사용, 없으면 name
+    const lv1Display = chain[0]?.alias || chain[0]?.name || '-';
     const levels: OrgLevels = {
-      lv1: chain[0]?.name || '-',
+      lv1: lv1Display,
       lv2: chain[1]?.name || '-',
       lv3: chain[2]?.name || '-',
       lv4: chain[3]?.name || '-',
     };
 
+    // name과 alias 둘 다 키로 등록 (매칭 확률 높이기)
     lookup.set(node.name, levels);
+    if (node.alias) lookup.set(node.alias, levels);
   }
 
   return lookup;
 }
-
-/** org_line_path 키워드 → Lv.1 약칭 매핑 (org_nodes에 없는 상위 조직용) */
-const PATH_TO_LV1: [string, string][] = [
-  ['East Publishing Div.', 'EPS'],
-  ['East Publishing Services Div.', 'EPS'],
-  ['West Publishing Dept.', 'WPS'],
-  ['West Publishing Services Dept.', 'WPS'],
-  ['NA Publishing Div.', 'NAPS'],
-  ['NA Publishing Services', 'NAPS'],
-  ['Global Creative Div.', 'GCD'],
-  ['Publishing Services Management', 'PSM'],
-];
 
 /** org_line_path에서 org_nodes에 매칭되는 가장 깊은 노드로 lv1~lv4 결정 */
 function resolveOrg(
@@ -90,23 +82,24 @@ function resolveOrg(
 ): OrgLevels {
   // 1. org_name으로 직접 매칭
   const direct = orgLookup.get(orgName);
-  if (direct) return direct;
-
-  // 2. org_line_path segment를 뒤에서부터 매칭
-  const segments = orgLinePath.split('>');
-  for (let i = segments.length - 1; i >= 0; i--) {
-    const match = orgLookup.get(segments[i]);
-    if (match) return match;
+  if (direct) {
+    // Lv.1 직속인 경우 (org_name이 Lv.1 이름과 매칭되어 lv2='-')
+    if (direct.lv2 === '-') return { ...direct, lv2: '(direct)' };
+    return direct;
   }
 
-  // 3. org_line_path 키워드로 Lv.1 추론
-  for (const [keyword, lv1] of PATH_TO_LV1) {
-    if (orgLinePath.includes(keyword)) {
-      return { lv1, lv2: orgName, lv3: '-', lv4: '-' };
+  // 2. org_line_path segment를 뒤에서부터 매칭 (trim 적용)
+  const segments = orgLinePath.split('>').map(s => s.trim());
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const match = orgLookup.get(segments[i]);
+    if (match) {
+      // 매칭된 노드가 Lv.1이면 직속
+      if (match.lv2 === '-') return { ...match, lv2: '(direct)' };
+      return match;
     }
   }
 
-  // 4. 매칭 실패 → "Other"
+  // 3. 매칭 실패 → "Other"
   return { lv1: 'Other', lv2: orgName, lv3: '-', lv4: '-' };
 }
 

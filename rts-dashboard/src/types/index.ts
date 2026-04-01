@@ -94,6 +94,7 @@ export interface SvcDropdownOption {
   label: string;
   level: string; // "1", "2", "3"
   indent: number;
+  isOld?: boolean;
 }
 
 // ─── DB 테이블 대응 타입 ───
@@ -101,6 +102,7 @@ export interface SvcDropdownOption {
 export interface OrgNode {
   id: number;
   name: string;
+  alias: string | null;
   level: number;
   parent_id: number | null;
   sort_order: number;

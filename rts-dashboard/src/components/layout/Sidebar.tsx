@@ -17,16 +17,19 @@ const Sidebar: React.FC<SidebarProps> = ({ activeOrg, activeProduct, onSelectOrg
   <nav className="sidebar">
     <div className="sb-section">
       <div className="sb-title">Shared Services</div>
-      {orgLv1.map(s => (
-        <div
-          key={s.name}
-          className={`sb-item ${activeOrg === s.name ? 'active' : ''}`}
-          onClick={() => onSelectOrg(s.name)}
-        >
-          <span className="sb-icon" style={{ background: LV1_COLORS[s.name] || '#888' }} />
-          {s.name}
-        </div>
-      ))}
+      {orgLv1.map(s => {
+        const display = s.alias || s.name;
+        return (
+          <div
+            key={s.name}
+            className={`sb-item ${activeOrg === s.name ? 'active' : ''}`}
+            onClick={() => onSelectOrg(s.name)}
+          >
+            <span className="sb-icon" style={{ background: LV1_COLORS[display] || '#888' }} />
+            {display}
+          </div>
+        );
+      })}
     </div>
     <div className="sb-divider" />
     <div className="sb-section">

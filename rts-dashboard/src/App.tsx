@@ -14,6 +14,7 @@ type ViewMode = 'home' | 'svc' | 'gpd' | 'npd';
 const App: React.FC = () => {
   const {
     allOrgNodes, products, poGames, gpdConfig, productLabelMap,
+    detail: allDetail, ymList: YM,
     loading, detailLoading, loadDetail,
   } = useData();
 
@@ -25,6 +26,13 @@ const App: React.FC = () => {
   const mainRef = useRef<HTMLDivElement>(null);
 
   const orgLv1 = useMemo(() => allOrgNodes.filter(n => n.level === 1), [allOrgNodes]);
+
+  // activeOrg(풀네임) → alias(EPS 등) 변환
+  const activeOrgAlias = useMemo(() => {
+    if (!activeOrg) return null;
+    const node = orgLv1.find(n => n.name === activeOrg);
+    return node?.alias || activeOrg;
+  }, [activeOrg, orgLv1]);
 
   const PO_ORDER = ['GPD1', 'GPD2', 'GPD3', 'IP Franchise'];
   const poOwnerIds = useMemo(() => {
@@ -101,6 +109,20 @@ const App: React.FC = () => {
       .map(g => ({ short: g.gameShort, full: g.gameName }));
   }, [activeOrg, poGames]);
 
+  // Active orgs in previous month (for legacy detection)
+  const prevMonthActiveOrgs = useMemo(() => {
+    if (YM.length < 2) return new Set<string>();
+    const prevYm = YM[YM.length - 2];
+    const active = new Set<string>();
+    for (const d of allDetail) {
+      if (d.ym === prevYm) {
+        active.add(d.lv2);
+        active.add(d.lv3);
+      }
+    }
+    return active;
+  }, [allDetail, YM]);
+
   // SVC dropdown options — DB org_nodes 기반
   const svcDropdownOptions = useMemo((): SvcDropdownOption[] => {
     if (!activeOrg || viewMode !== 'svc') return [];
@@ -108,24 +130,42 @@ const App: React.FC = () => {
     if (!lv1) return [];
 
     const opts: SvcDropdownOption[] = [
-      { value: '__all', label: `${activeOrg} All`, level: '1', indent: 0 },
+      { value: '__all', label: `${activeOrgAlias || activeOrg} All`, level: '1', indent: 0 },
     ];
 
     const lv2Nodes = allOrgNodes
       .filter(n => n.parent_id === lv1.id)
       .sort((a, b) => a.sort_order - b.sort_order);
 
+    // Separate active and old lv2 groups
+    const activeLv2: typeof lv2Nodes = [];
+    const oldLv2: typeof lv2Nodes = [];
     for (const lv2 of lv2Nodes) {
-      opts.push({ value: lv2.name, label: lv2.name, level: '2', indent: 1 });
+      if (prevMonthActiveOrgs.has(lv2.name)) {
+        activeLv2.push(lv2);
+      } else {
+        oldLv2.push(lv2);
+      }
+    }
+
+    for (const lv2 of [...activeLv2, ...oldLv2]) {
+      const isOldLv2 = !prevMonthActiveOrgs.has(lv2.name);
+      opts.push({ value: lv2.name, label: isOldLv2 ? `(old) ${lv2.name}` : lv2.name, level: '2', indent: 1, isOld: isOldLv2 });
+
       const lv3Nodes = allOrgNodes
         .filter(n => n.parent_id === lv2.id)
         .sort((a, b) => a.sort_order - b.sort_order);
-      for (const lv3 of lv3Nodes) {
-        opts.push({ value: lv3.name, label: lv3.name, level: '3', indent: 2 });
+
+      const activeLv3 = lv3Nodes.filter(n => prevMonthActiveOrgs.has(n.name));
+      const oldLv3 = lv3Nodes.filter(n => !prevMonthActiveOrgs.has(n.name));
+
+      for (const lv3 of [...activeLv3, ...oldLv3]) {
+        const isOldLv3 = !prevMonthActiveOrgs.has(lv3.name);
+        opts.push({ value: lv3.name, label: isOldLv3 ? `(old) ${lv3.name}` : lv3.name, level: '3', indent: 2, isOld: isOldLv3 });
       }
     }
     return opts;
-  }, [activeOrg, viewMode, allOrgNodes]);
+  }, [activeOrg, viewMode, allOrgNodes, prevMonthActiveOrgs]);
 
   // Breadcrumb parts
   const breadcrumbParts = useMemo(() => {
@@ -142,11 +182,12 @@ const App: React.FC = () => {
       return parts;
     }
     if (viewMode === 'svc') {
-      const parts = [activeOrg || ''];
+      const display = activeOrgAlias || activeOrg || '';
+      const parts = [display];
       if (curSvcLv2) {
         parts.push(curSvcLv2);
       } else {
-        parts.push(`${activeOrg} All`);
+        parts.push(`${display} All`);
       }
       return parts;
     }
@@ -186,7 +227,7 @@ const App: React.FC = () => {
                 }}
               >
                 {svcDropdownOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>
+                  <option key={opt.value} value={opt.value} style={opt.isOld ? { color: '#aaa' } : undefined}>
                     {'　'.repeat(opt.indent)}{opt.label}
                   </option>
                 ))}
@@ -223,7 +264,7 @@ const App: React.FC = () => {
           {!detailLoading && viewMode === 'svc' && activeOrg && (
             <SvcView
               key={`${activeOrg}-${curSvcLv2}`}
-              org={activeOrg}
+              org={activeOrgAlias!}
               lv2={curSvcLv2}
               lvl={curSvcLvl}
               onLv2Change={handleSvcLv2Change}

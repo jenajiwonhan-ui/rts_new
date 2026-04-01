@@ -165,6 +165,87 @@ function getISOWeeksInYear(year: number): number {
   return Math.floor(diff / (7 * 86400000)) + 1;
 }
 
+/** 새 제품을 products 테이블에 자동 추가 (기존 항목은 건드리지 않음) */
+async function syncProducts(entries: RawEntry[]) {
+  const productNames = [...new Set(entries.map(e => e.productName))];
+  if (productNames.length === 0) return;
+
+  // 기존 제품 조회
+  const { data: existing } = await supabase.from('products').select('name');
+  const existingSet = new Set((existing || []).map(p => p.name));
+
+  const newProducts = productNames
+    .filter(name => !existingSet.has(name))
+    .map(name => ({ name }));
+
+  if (newProducts.length > 0) {
+    const { error } = await supabase.from('products').insert(newProducts);
+    if (error) console.error('[syncProducts] Error:', error);
+    else console.log(`[syncProducts] Added ${newProducts.length} new products: ${newProducts.map(p => p.name).join(', ')}`);
+  }
+}
+
+/** 새 조직을 org_nodes 테이블에 자동 추가 (Lv.1 하위만, 기존 항목은 건드리지 않음) */
+async function syncOrgNodes(entries: RawEntry[]) {
+  // 기존 org_nodes 조회
+  const { data: existing } = await supabase.from('org_nodes').select('id, name, alias, level, parent_id');
+  if (!existing) return;
+
+  const existingNames = new Set(existing.map(n => n.name));
+  const existingAliases = new Set(existing.filter(n => n.alias).map(n => n.alias!));
+  const lv1Nodes = existing.filter(n => n.level === 1);
+
+  // Lv.1 name/alias → id 매핑
+  const lv1Map = new Map<string, number>();
+  for (const n of lv1Nodes) {
+    lv1Map.set(n.name, n.id);
+    if (n.alias) lv1Map.set(n.alias, n.id);
+  }
+
+  const newNodes: { name: string; level: number; parent_id: number }[] = [];
+
+  for (const entry of entries) {
+    const segments = entry.orgLinePath.split('>').map(s => s.trim());
+
+    // Lv.1 찾기
+    let lv1Id: number | undefined;
+    for (const seg of segments) {
+      lv1Id = lv1Map.get(seg);
+      if (lv1Id) break;
+    }
+    if (!lv1Id) continue;
+
+    // Lv.1 이후 세그먼트들 (Lv.2, Lv.3, ...) 중 DB에 없는 것 추가
+    const lv1Idx = segments.findIndex(s => lv1Map.has(s));
+    const subSegments = segments.slice(lv1Idx + 1);
+
+    let parentId = lv1Id;
+    let level = 2;
+    for (const seg of subSegments) {
+      if (!seg || existingNames.has(seg) || existingAliases.has(seg)) {
+        // 이미 있으면 해당 노드의 id를 찾아서 다음 parent로
+        const found = existing.find(n => n.name === seg || n.alias === seg);
+        if (found) { parentId = found.id; level = found.level + 1; }
+        continue;
+      }
+      // 새 노드
+      if (level <= 4) {
+        newNodes.push({ name: seg, level, parent_id: parentId });
+        existingNames.add(seg); // 중복 방지
+      }
+      break; // 부모가 아직 insert 안 됐으니 한 레벨만
+    }
+  }
+
+  if (newNodes.length > 0) {
+    // 중복 제거
+    const unique = [...new Map(newNodes.map(n => [n.name, n])).values()];
+    const { error } = await supabase.from('org_nodes').insert(unique);
+    if (error) console.error('[syncOrgNodes] Error:', error);
+    else console.log(`[syncOrgNodes] Added ${unique.length} new org nodes: ${unique.map(n => n.name).join(', ')}`);
+  }
+}
+
 /** 메인: 현재 주차 데이터를 fetch하여 DB에 저장 */
 export async function fetchRawData() {
   const baseUrl = process.env.RAW_DATA_API_URL;
@@ -187,6 +268,11 @@ export async function fetchRawData() {
       return;
     }
 
+    // 1. products & org_nodes 자동 sync
+    await syncProducts(entries);
+    await syncOrgNodes(entries);
+
+    // 2. rts_entries upsert
     const rows = entries.map(toDbRow);
     const count = await upsertBatch(rows);
     console.log(`[fetchRawData] Done. ${count} rows upserted for ${year}-W${week}`);

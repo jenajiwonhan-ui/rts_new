@@ -406,6 +406,7 @@
   flex: 0 0 320px; color: var(--text);
   white-space: nowrap;
 }
+.tree-old .tree-row-name, .tree-old .tree-row-tc { color: #aaa; }
 .tree-row-tc {
   width: 60px; text-align: right; flex-shrink: 0;
   padding: 0 4px; font-size: 12px;

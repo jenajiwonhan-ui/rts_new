@@ -12,9 +12,10 @@ interface GpdTreeProps {
   detail: DetailRecord[];
   org: string;
   product: string | null;
+  isNpd?: boolean;
 }
 
-const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
+const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product, isNpd }) => {
   const { ymList: YM, weekMondays: WM, detail: allDetail } = useData();
   const [tmMode, setTmMode] = useState<'monthly' | 'weekly'>('monthly');
   const [depth, setDepth] = useState<'2' | '3' | 'a'>('2');
@@ -48,6 +49,21 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
     }
     return d;
   }, [detail, range, search]);
+
+  // Products in this view (for highlight in person chart)
+  const highlightProducts = useMemo(() => {
+    if (isNpd) {
+      // Non-product 뷰: Non-product/OOF만 highlight
+      const npd = new Set<string>();
+      for (const d of detail) {
+        if (d.p === 'Non-product' || d.p.includes('Out of Office')) npd.add(d.p);
+      }
+      return npd.size > 0 ? npd : undefined;
+    }
+    const prods = new Set<string>();
+    for (const d of detail) prods.add(d.p);
+    return prods.size > 0 ? prods : undefined;
+  }, [detail, isNpd]);
 
   const wpm = useMemo(() => getWeeksPerMonth(filteredDetail), [filteredDetail]);
 
@@ -185,17 +201,8 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
     </>
   );
 
-  const renderMemberRow = (name: string, times: Record<string, number>, parentKey: string, orgFilter?: { lv1?: string; lv2?: string; lv3?: string }, isOld?: boolean) => {
+  const renderMemberRow = (name: string, times: Record<string, number>, parentKey: string, _orgFilter?: { lv1?: string; lv2?: string; lv3?: string }, isOld?: boolean) => {
     const personKey = `${parentKey}|${name}`;
-    // 해당 조직 경로에 속하는 detail만 필터
-    const filteredDetail = orgFilter
-      ? detail.filter(d => {
-          if (orgFilter.lv1 && d.lv1 !== orgFilter.lv1) return false;
-          if (orgFilter.lv2 && d.lv2 !== orgFilter.lv2) return false;
-          if (orgFilter.lv3 && d.lv3 !== orgFilter.lv3) return false;
-          return true;
-        })
-      : detail;
     return (
       <React.Fragment key={personKey}>
         <div className={`tree-row tree-zebra${expandedPersons.has(personKey) ? ' person-row-active' : ''}${isOld ? ' tree-old' : ''}`}>
@@ -219,7 +226,9 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product }) => {
         {expandedPersons.has(personKey) && (
           <PersonInlineChart
             name={name}
-            detail={filteredDetail}
+            detail={allDetail}
+            allDetail={allDetail}
+            highlightProducts={highlightProducts}
             range={range}
             tmMode={tmMode}
             onClose={() => togglePerson(personKey)}

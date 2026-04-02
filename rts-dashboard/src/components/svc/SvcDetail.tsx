@@ -23,7 +23,7 @@ interface FlatRow {
 }
 
 const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org, productLabelMap }) => {
-  const { ymList: YM, weekMondays: WM } = useData();
+  const { ymList: YM, weekMondays: WM, detail: allDetail } = useData();
   const pLabel = (name: string) => productLabelMap[name] || name;
   const [tmMode, setTmMode] = useState<'monthly' | 'weekly'>('monthly');
   const [fromYm, setFromYm] = useState(() => {
@@ -292,6 +292,7 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org, productLabelMap }) =
                   <PersonInlineChart
                     name={row.member}
                     detail={detail}
+                    allDetail={allDetail}
                     range={range}
                     tmMode={tmMode}
                     onClose={() => togglePerson(rowKey)}

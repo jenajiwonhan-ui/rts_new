@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { useData } from '../../contexts/DataContext';
-import { getWeeksPerMonth, buildProdColors } from '../../utils/aggregation';
+import { getWeeksPerMonth, getWeeksInRange, buildProdColors } from '../../utils/aggregation';
 import { ymLabel } from '../../utils/formatters';
 import { hexLum } from '../../utils/colors';
 import { DetailRecord } from '../../types';
@@ -14,10 +14,21 @@ interface PersonInlineChartProps {
   tmMode: 'monthly' | 'weekly';
   onClose?: () => void;
   scrollRef?: React.RefObject<HTMLDivElement | null>;
+  highlightProducts?: Set<string>;
+  allDetail?: DetailRecord[];
+}
+
+const DIM_ALPHA = 0.20;
+function applyAlpha(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
-  name, detail, range, tmMode, onClose, scrollRef,
+  name, detail, range, tmMode, onClose, scrollRef, highlightProducts, allDetail,
 }) => {
   const { weekMondays: WM, gpdGroups, productColors } = useData();
   // Measure visible width of scroll container
@@ -52,47 +63,59 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
   }, [onClose]);
 
   const personData = useMemo(() => {
-    const records = detail.filter(d => d.n === name && range.includes(d.ym));
+    const sourceDetail = allDetail || detail;
+    const records = sourceDetail.filter(d => d.n === name && range.includes(d.ym));
     if (records.length === 0) return null;
 
     const wpm = getWeeksPerMonth(records);
     const prodColors = buildProdColors(records, gpdGroups, productColors);
+    const hl = highlightProducts;
+
+    const getColor = (p: string) => {
+      const c = prodColors.colorMap[p] || '#ccc';
+      return hl && !hl.has(p) ? applyAlpha(c, DIM_ALPHA) : c;
+    };
+
+    // Sort: highlighted first (bottom of stack), then dehighlighted on top
+    const sortedItems = hl
+      ? [...prodColors.allItems.filter(p => hl.has(p)), ...prodColors.allItems.filter(p => !hl.has(p))]
+      : prodColors.allItems;
 
     if (tmMode === 'monthly') {
       const labels = range.map(ymLabel);
-      const datasets = prodColors.allItems.map(p => {
+      const datasets = sortedItems.map(p => {
         const data = range.map(ym => {
           const recs = records.filter(r => r.p === p && r.ym === ym);
           const total = recs.reduce((s, r) => s + r.tot, 0);
           return (wpm[ym] || 1) > 0 ? total / (wpm[ym] || 1) : 0;
         });
-        const bgColor = prodColors.colorMap[p] || '#ccc';
-        return {
-          label: p,
-          data,
-          backgroundColor: bgColor,
-        };
+        return { label: p, data, backgroundColor: getColor(p) };
       });
-      return { labels, datasets, legendItems: prodColors.allItems.map(p => ({ label: p, color: prodColors.colorMap[p] || '#ccc' })) };
+      // Legend: highlighted first for readability
+      const legendItems = hl
+        ? [...prodColors.allItems.filter(p => hl.has(p)), ...prodColors.allItems.filter(p => !hl.has(p))]
+        : prodColors.allItems;
+      return { labels, datasets, legendItems: legendItems.map(p => ({ label: p, color: getColor(p) })) };
     } else {
-      // Weekly
-      const weekKeys = new Set<string>();
-      for (const r of records) {
-        for (const w of Object.keys(r.wk)) weekKeys.add(w);
-      }
-      const sortedWeeks = Array.from(weekKeys).sort();
+      // 전체 데이터에서 해당 기간의 모든 주를 가져옴 (데이터 없는 주도 포함)
+      const sortedWeeks = getWeeksInRange(sourceDetail, range);
       const labels = sortedWeeks.map(w => WM[w] || w);
 
-      const datasets = prodColors.allItems.map(p => {
+      const datasets = sortedItems.map(p => {
         const data = sortedWeeks.map(w => {
           return records.filter(r => r.p === p).reduce((s, r) => s + (r.wk[w] || 0), 0);
         });
-        const bgColor = prodColors.colorMap[p] || '#ccc';
-        return { label: p, data, backgroundColor: bgColor };
+        return { label: p, data, backgroundColor: getColor(p) };
       });
-      return { labels, datasets, legendItems: prodColors.allItems.map(p => ({ label: p, color: prodColors.colorMap[p] || '#ccc' })) };
+      const legendItems = hl
+        ? [...prodColors.allItems.filter(p => hl.has(p)), ...prodColors.allItems.filter(p => !hl.has(p))]
+        : prodColors.allItems;
+      return { labels, datasets, legendItems: legendItems.map(p => ({ label: p, color: getColor(p) })) };
     }
-  }, [name, detail, range, tmMode]);
+  }, [name, detail, allDetail, range, tmMode, highlightProducts]);
+
+  const hlProdsRef = useRef(highlightProducts);
+  hlProdsRef.current = highlightProducts;
 
   const inlinePlugin = useMemo(() => ({
     id: 'personInlineLabels',
@@ -104,6 +127,12 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
       const lastMeta = chart.getDatasetMeta(dsCount - 1);
       if (!lastMeta?.data?.length) return;
       const barCount = lastMeta.data.length;
+      const isWk = barCount > 6;
+      const valFontSize = isWk ? 11 : 14;
+      const diffFontSize = isWk ? 9 : 12;
+      const valFont = `600 ${valFontSize}px Pretendard, sans-serif`;
+      const diffFont = `400 ${diffFontSize}px Pretendard, sans-serif`;
+      const hl = hlProdsRef.current;
 
       for (let bi = 0; bi < barCount; bi++) {
         let topY = Infinity;
@@ -119,56 +148,89 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
         if (total <= 0 || topY === Infinity) continue;
         const firstBar = chart.getDatasetMeta(0).data[bi] as any;
         const barW = firstBar?.width ?? 30;
-        if (barW < 30) continue;
+        if (barW < 20) continue;
 
         ctx.save();
 
-        // Per-segment labels
+        // Per-segment labels (highlighted products always shown)
         for (let di = 0; di < dsCount; di++) {
           const v = (chart.data.datasets[di].data[bi] as number) || 0;
           if (v <= 0) continue;
+          const dsLabel = chart.data.datasets[di].label || '';
+          const isHl = !hl || hl.has(dsLabel);
           const bar = chart.getDatasetMeta(di).data[bi] as any;
           if (!bar) continue;
           const segH = Math.abs(bar.base - bar.y);
-          const barW = bar.width ?? 30;
-          if (segH < 12 || barW < 24) continue;
-          const pct = (v / total) * 100;
-          if (pct < 8) continue;
+          const curValFont = isHl ? valFont : `600 ${valFontSize - 2}px Pretendard, sans-serif`;
+          const curDiffFont = diffFont;
+          if (!isHl && segH < 10) continue;
+          const pct = total > 0 ? (v / total) * 100 : 0;
+          if (!isHl && (pct < 8 || segH < 12)) continue;
+          const cy = (bar.y + bar.base) / 2;
 
           const bgc = (chart.data.datasets[di].backgroundColor as string) || '#888';
-          const isDark = hexLum(bgc) < 0.45;
-          const valColor = isDark ? '#ffffff' : '#2a2d3a';
-          const posColor = isDark ? '#a0e0ff' : '#2a6f9e';
-          const negColor = isDark ? '#ffb0a0' : '#b04030';
-          const cy = (bar.y + bar.base) / 2;
+          const needChip = segH < 18;
+          const isDark = isHl ? hexLum(bgc) < 0.45 : false;
+          const valColor = isHl ? (isDark ? '#ffffff' : '#2a2d3a') : '#888';
+          const posColor = isHl ? (isDark ? '#a0e0ff' : '#2a6f9e') : '#aaa';
+          const negColor = isHl ? (isDark ? '#ffb0a0' : '#b04030') : '#aaa';
 
           if (bi > 0) {
             const prevV = (chart.data.datasets[di].data[bi - 1] as number) || 0;
             const segDiff = v - prevV;
             const valText = v.toFixed(1);
-            const diffText = ` ${segDiff >= 0 ? '+' : ''}${segDiff.toFixed(1)}`;
+            const diffText = ` (${segDiff >= 0 ? '▲' : '▼'}${Math.abs(segDiff).toFixed(1)})`;
 
-            ctx.font = '600 14px Pretendard, sans-serif';
+            ctx.font = curValFont;
             const valW = ctx.measureText(valText).width;
-            ctx.font = '400 12px Pretendard, sans-serif';
+            ctx.font = curDiffFont;
             const diffW = ctx.measureText(diffText).width;
-            const startX = bar.x - (valW + diffW) / 2;
+            const fullW = valW + diffW;
+            const startX = bar.x - fullW / 2;
 
-            ctx.textBaseline = 'middle';
-            ctx.textAlign = 'left';
-            ctx.font = '600 14px Pretendard, sans-serif';
-            ctx.fillStyle = valColor;
-            ctx.fillText(valText, startX, cy);
+            if (needChip) {
+              const chipH = isWk ? 14 : 18, chipPad = isWk ? 3 : 4, r = 3;
+              ctx.beginPath();
+              ctx.roundRect(bar.x - (fullW + chipPad * 2) / 2, cy - chipH / 2, fullW + chipPad * 2, chipH, r);
+              ctx.fillStyle = bgc;
+              ctx.fill();
+              const chipStartX = bar.x - (fullW + chipPad * 2) / 2 + chipPad;
 
-            ctx.font = '400 12px Pretendard, sans-serif';
-            ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
-            ctx.fillText(diffText, startX + valW, cy);
+              ctx.textBaseline = 'middle';
+              ctx.textAlign = 'left';
+              ctx.font = curValFont;
+              ctx.fillStyle = valColor;
+              ctx.fillText(valText, chipStartX, cy);
+              ctx.font = curDiffFont;
+              ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
+              ctx.fillText(diffText, chipStartX + valW, cy);
+            } else {
+              ctx.textBaseline = 'middle';
+              ctx.textAlign = 'left';
+              ctx.font = curValFont;
+              ctx.fillStyle = valColor;
+              ctx.fillText(valText, startX, cy);
+              ctx.font = curDiffFont;
+              ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
+              ctx.fillText(diffText, startX + valW, cy);
+            }
           } else {
-            ctx.font = '600 14px Pretendard, sans-serif';
+            ctx.font = curValFont;
+            const valText = v.toFixed(1);
+
+            if (needChip) {
+              const tw = ctx.measureText(valText).width;
+              const chipH = isWk ? 14 : 18, chipPad = isWk ? 3 : 4, r = 3;
+              ctx.beginPath();
+              ctx.roundRect(bar.x - (tw + chipPad * 2) / 2, cy - chipH / 2, tw + chipPad * 2, chipH, r);
+              ctx.fillStyle = bgc;
+              ctx.fill();
+            }
+
             ctx.fillStyle = valColor;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(v.toFixed(1), bar.x, cy);
+            ctx.fillText(valText, bar.x, cy);
           }
         }
 

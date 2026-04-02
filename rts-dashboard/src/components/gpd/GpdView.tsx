@@ -252,7 +252,7 @@ const GpdView: React.FC<GpdViewProps> = ({ org, product, gpdConfig, npdProducts 
 
       {/* Section 2: Details Tree */}
       <div className="sec">
-        <GpdTree detail={detail} org={org} product={product} />
+        <GpdTree detail={detail} org={org} product={product} isNpd={isNpd} />
       </div>
     </div>
   );

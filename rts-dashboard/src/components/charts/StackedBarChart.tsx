@@ -393,7 +393,7 @@ function applyAlpha(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-const DIM_ALPHA = 0.15;
+const DIM_ALPHA = 0.20;
 
 const StackedBarChart: React.FC<StackedBarChartProps> = ({
   labels, datasets, yTitle = 'M/M', height = 350,

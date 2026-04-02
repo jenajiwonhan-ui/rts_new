@@ -264,6 +264,13 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product, isNpd }) => {
             <PeriodSelect ymList={YM} value={fromYm} onChange={setFromYm} />
             <span className="sep">~</span>
             <PeriodSelect ymList={YM} value={toYm} onChange={setToYm} />
+            <input
+              className="fi"
+              placeholder="Search member..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ minWidth: 150 }}
+            />
           </div>
           <div className="gpd-controls">
             <Toggle

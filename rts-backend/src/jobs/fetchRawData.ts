@@ -179,7 +179,7 @@ async function syncProducts(entries: RawEntry[]) {
     .map(name => ({ name }));
 
   if (newProducts.length > 0) {
-    const { error } = await supabase.from('products').insert(newProducts);
+    const { error } = await supabase.from('products').upsert(newProducts, { onConflict: 'name', ignoreDuplicates: true });
     if (error) console.error('[syncProducts] Error:', error);
     else console.log(`[syncProducts] Added ${newProducts.length} new products: ${newProducts.map(p => p.name).join(', ')}`);
   }
@@ -259,23 +259,31 @@ export async function fetchRawData() {
   console.log(`[fetchRawData] Starting at ${new Date().toISOString()}`);
 
   try {
-    const { year, week } = getCurrentYearWeek();
-    const raw = await fetchWeek(baseUrl, apiToken, year, week);
-    const entries = filterPrimary(raw);
+    // 2026년 전체 주차 가져오기
+    const weeksToFetch = getAllWeeks();
 
-    if (entries.length === 0) {
-      console.log('[fetchRawData] No data returned');
-      return;
+    let totalCount = 0;
+    for (const { year, week } of weeksToFetch) {
+      const raw = await fetchWeek(baseUrl, apiToken, year, week);
+      const entries = filterPrimary(raw);
+
+      if (entries.length === 0) {
+        console.log(`[fetchRawData] No data for ${year}-W${week}`);
+        continue;
+      }
+
+      // products & org_nodes 자동 sync
+      await syncProducts(entries);
+      await syncOrgNodes(entries);
+
+      // rts_entries upsert
+      const rows = entries.map(toDbRow);
+      const count = await upsertBatch(rows);
+      totalCount += count;
+      console.log(`[fetchRawData] ${count} rows upserted for ${year}-W${week}`);
     }
 
-    // 1. products & org_nodes 자동 sync
-    await syncProducts(entries);
-    await syncOrgNodes(entries);
-
-    // 2. rts_entries upsert
-    const rows = entries.map(toDbRow);
-    const count = await upsertBatch(rows);
-    console.log(`[fetchRawData] Done. ${count} rows upserted for ${year}-W${week}`);
+    console.log(`[fetchRawData] Done. ${totalCount} total rows upserted for ${weeksToFetch.length} weeks`);
   } catch (err) {
     console.error('[fetchRawData] Error:', err);
   }

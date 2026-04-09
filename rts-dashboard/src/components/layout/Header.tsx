@@ -4,7 +4,7 @@ const GUIDELINES = [
   'Data is displayed as entered in RTS, with no additional processing or adjustments',
   "Scope is limited to GP's organizations and their assigned products",
   'Covers data from 2026 onwards',
-  'Includes Primary Role (주직) data only',
+  'Includes Primary Role data only',
 ];
 
 const Header: React.FC = () => {
@@ -22,9 +22,9 @@ const Header: React.FC = () => {
       >
         <span className="header-info-btn">
           <svg viewBox="0 0 16 16" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="8" cy="8" r="6.5" fill="#fff" stroke="#fff" />
-            <path d="M6 6.5a2 2 0 1 1 2 2v1" stroke="var(--accent)" />
-            <circle cx="8" cy="11.5" r="0.5" fill="var(--accent)" />
+            <circle cx="8" cy="8" r="6.5" fill="none" stroke="rgba(255,255,255,0.72)" />
+            <line x1="8" y1="7" x2="8" y2="10.5" stroke="rgba(255,255,255,0.72)" />
+            <circle cx="8" cy="5" r="0.6" fill="rgba(255,255,255,0.72)" stroke="none" />
           </svg>
         </span>
         {showPopover && (

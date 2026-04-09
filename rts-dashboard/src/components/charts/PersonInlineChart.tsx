@@ -171,9 +171,9 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
           const bgc = (chart.data.datasets[di].backgroundColor as string) || '#888';
           const needChip = segH < 18;
           const isDark = isHl ? hexLum(bgc) < 0.45 : false;
-          const valColor = isHl ? (isDark ? '#ffffff' : '#2a2d3a') : '#888';
-          const posColor = isHl ? (isDark ? '#a0e0ff' : '#2a6f9e') : '#aaa';
-          const negColor = isHl ? (isDark ? '#ffb0a0' : '#b04030') : '#aaa';
+          const valColor = isHl ? (isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)') : '#888';
+          const posColor = isHl ? (isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.48)') : '#aaa';
+          const negColor = isHl ? (isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.48)') : '#aaa';
 
           if (bi > 0) {
             const prevV = (chart.data.datasets[di].data[bi - 1] as number) || 0;
@@ -189,20 +189,33 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
             const startX = bar.x - fullW / 2;
 
             if (needChip) {
-              const chipH = isWk ? 14 : 18, chipPad = isWk ? 3 : 4, r = 3;
-              ctx.beginPath();
-              ctx.roundRect(bar.x - (fullW + chipPad * 2) / 2, cy - chipH / 2, fullW + chipPad * 2, chipH, r);
-              ctx.fillStyle = bgc;
-              ctx.fill();
-              const chipStartX = bar.x - (fullW + chipPad * 2) / 2 + chipPad;
+              const chipH = isWk ? 14 : 18, chipPad = isWk ? 4 : 5, r = chipH / 2;
+              const chipW = fullW + chipPad * 2;
+              const cxChip = bar.x - chipW / 2;
+              const cyTopChip = cy - chipH / 2;
 
+              ctx.save();
+              ctx.globalAlpha = 0.92;
+              ctx.beginPath();
+              ctx.roundRect(cxChip, cyTopChip, chipW, chipH, r);
+              ctx.fillStyle = '#fff';
+              ctx.fill();
+              ctx.globalAlpha = 1;
+              ctx.beginPath();
+              ctx.roundRect(cxChip, cyTopChip, chipW, chipH, r);
+              ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+              ctx.restore();
+
+              const chipStartX = cxChip + chipPad;
               ctx.textBaseline = 'middle';
               ctx.textAlign = 'left';
               ctx.font = curValFont;
-              ctx.fillStyle = valColor;
+              ctx.fillStyle = 'rgba(0,0,0,0.8)';
               ctx.fillText(valText, chipStartX, cy);
               ctx.font = curDiffFont;
-              ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
+              ctx.fillStyle = 'rgba(0,0,0,0.48)';
               ctx.fillText(diffText, chipStartX + valW, cy);
             } else {
               ctx.textBaseline = 'middle';
@@ -220,14 +233,27 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
 
             if (needChip) {
               const tw = ctx.measureText(valText).width;
-              const chipH = isWk ? 14 : 18, chipPad = isWk ? 3 : 4, r = 3;
+              const chipH = isWk ? 14 : 18, chipPad = isWk ? 4 : 5, r = chipH / 2;
+              const chipW = tw + chipPad * 2;
+              const cxChip = bar.x - chipW / 2;
+              const cyTopChip = cy - chipH / 2;
+
+              ctx.save();
+              ctx.globalAlpha = 0.92;
               ctx.beginPath();
-              ctx.roundRect(bar.x - (tw + chipPad * 2) / 2, cy - chipH / 2, tw + chipPad * 2, chipH, r);
-              ctx.fillStyle = bgc;
+              ctx.roundRect(cxChip, cyTopChip, chipW, chipH, r);
+              ctx.fillStyle = '#fff';
               ctx.fill();
+              ctx.globalAlpha = 1;
+              ctx.beginPath();
+              ctx.roundRect(cxChip, cyTopChip, chipW, chipH, r);
+              ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+              ctx.restore();
             }
 
-            ctx.fillStyle = valColor;
+            ctx.fillStyle = needChip ? 'rgba(0,0,0,0.8)' : valColor;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(valText, bar.x, cy);
@@ -270,12 +296,12 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
                 bar: { categoryPercentage: tmMode === 'weekly' ? 0.85 : 0.6 },
               },
               scales: {
-                x: { stacked: true, grid: { display: false }, ticks: { font: { size: 12, weight: '500', family: 'Pretendard' } } },
+                x: { stacked: true, grid: { display: false }, ticks: { color: 'rgba(0,0,0,0.48)', font: { size: 12, weight: '500', family: '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif' } } },
                 y: {
                   stacked: true,
                   max: 1.0,
-                  title: { display: true, text: tmMode === 'monthly' ? 'M/M' : 'Weekly RTS', font: { size: 10, weight: '600', family: 'Pretendard' } },
-                  ticks: { font: { size: 12, weight: '500', family: 'Pretendard' } },
+                                    title: { display: true, text: tmMode === 'monthly' ? 'M/M' : 'Weekly RTS', color: 'rgba(0,0,0,0.48)', font: { size: 10, weight: '600', family: '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif' } },
+                  ticks: { color: 'rgba(0,0,0,0.48)', font: { size: 12, weight: '500', family: '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif' } },
                 },
               },
             } as any}

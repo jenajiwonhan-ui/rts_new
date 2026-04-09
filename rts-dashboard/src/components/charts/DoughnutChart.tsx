@@ -69,9 +69,9 @@ const DoughnutChart: React.FC<DoughnutChartProps> = ({
         textAlign: 'center' as const,
         color: (ctx: any) => {
           const bg = ctx.dataset?.backgroundColor?.[ctx.dataIndex] || '#888';
-          return hexLum(bg) >= 0.3 ? '#4a4d60' : 'rgba(255,255,255,0.9)';
+          return hexLum(bg) >= 0.3 ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)';
         },
-        font: { weight: 600, size: cfg.fontSize, family: 'Pretendard' },
+        font: { weight: 500, size: cfg.fontSize, family: '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif' },
         formatter: (v: number, ctx: any) => {
           if (total <= 0) return '';
           const pct = Math.round((v / total) * 100);

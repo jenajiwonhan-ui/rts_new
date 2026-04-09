@@ -227,7 +227,7 @@ const App: React.FC = () => {
                 }}
               >
                 {svcDropdownOptions.map(opt => (
-                  <option key={opt.value} value={opt.value} style={opt.isOld ? { color: '#aaa' } : undefined}>
+                  <option key={opt.value} value={opt.value} style={opt.isOld ? { color: 'var(--ba)' } : undefined}>
                     {'　'.repeat(opt.indent)}{opt.label}
                   </option>
                 ))}

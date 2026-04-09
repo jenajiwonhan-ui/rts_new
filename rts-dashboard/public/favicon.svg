@@ -1,38 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <defs>
-    <!-- Left Bar: Vibrant Blue -->
-    <linearGradient id="bar1" x1="0" y1="100" x2="0" y2="0">
-      <stop offset="0%" stop-color="#3B82F6"/>
-      <stop offset="100%" stop-color="#8B5CF6"/>
-    </linearGradient>
-    
-    <!-- Middle Bar: Deep Purple to Magenta -->
-    <linearGradient id="bar2" x1="0" y1="100" x2="0" y2="0">
-      <stop offset="0%" stop-color="#7C3AED"/>
-      <stop offset="100%" stop-color="#D946EF"/>
-    </linearGradient>
-    
-    <!-- Right Bar: Neon Pink to Orange -->
-    <linearGradient id="bar3" x1="0" y1="100" x2="0" y2="0">
-      <stop offset="0%" stop-color="#E11D48"/>
-      <stop offset="100%" stop-color="#F59E0B"/>
-    </linearGradient>
-
-    <!-- Drop Shadow for visibility on both dark and light browser tabs -->
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity="0.30"/>
-    </filter>
-  </defs>
-
-  <!-- Big, thick chart bars that perfectly fill the space transparently -->
-  <g filter="url(#shadow)">
-    <!-- Left Bar -->
-    <rect x="8" y="57" width="24" height="35" rx="8" fill="url(#bar1)"/>
-    
-    <!-- Middle Bar -->
-    <rect x="38" y="27" width="24" height="65" rx="8" fill="url(#bar2)"/>
-    
-    <!-- Right Bar -->
-    <rect x="68" y="7" width="24" height="85" rx="8" fill="url(#bar3)"/>
-  </g>
+  <rect x="10" y="58" width="22" height="34" rx="6" fill="#0071e3" opacity="0.4"/>
+  <rect x="39" y="32" width="22" height="60" rx="6" fill="#0071e3" opacity="0.65"/>
+  <rect x="68" y="8" width="22" height="84" rx="6" fill="#0071e3"/>
 </svg>

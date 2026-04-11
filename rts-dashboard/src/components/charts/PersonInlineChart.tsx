@@ -134,6 +134,28 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
       const diffFont = `400 ${diffFontSize}px Pretendard, sans-serif`;
       const hl = hlProdsRef.current;
 
+      // Pre-compute which datasets qualify (75% of bars must pass — same as StackedBarChart)
+      const dsVisible: boolean[] = [];
+      for (let di = 0; di < dsCount; di++) {
+        const dsLabel = chart.data.datasets[di].label || '';
+        const isHl = !hl || hl.has(dsLabel);
+        if (isHl) { dsVisible.push(true); continue; }
+        let passCount = 0;
+        for (let bi = 0; bi < barCount; bi++) {
+          const v = (chart.data.datasets[di].data[bi] as number) || 0;
+          if (v <= 0) continue;
+          const bar = chart.getDatasetMeta(di).data[bi] as any;
+          if (!bar) continue;
+          const segH = Math.abs(bar.base - bar.y);
+          if (segH < 4) continue;
+          let total = 0;
+          for (let d = 0; d < dsCount; d++) total += (chart.data.datasets[d].data[bi] as number) || 0;
+          const pct = total > 0 ? (v / total) * 100 : 0;
+          if (pct >= 10 && segH >= 20) passCount++;
+        }
+        dsVisible.push(barCount > 0 && passCount >= barCount * 0.75);
+      }
+
       for (let bi = 0; bi < barCount; bi++) {
         let topY = Infinity;
         let total = 0;
@@ -152,8 +174,9 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
 
         ctx.save();
 
-        // Per-segment labels (highlighted products always shown)
+        // Per-segment labels
         for (let di = 0; di < dsCount; di++) {
+          if (!dsVisible[di]) continue;
           const v = (chart.data.datasets[di].data[bi] as number) || 0;
           if (v <= 0) continue;
           const dsLabel = chart.data.datasets[di].label || '';
@@ -161,11 +184,9 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
           const bar = chart.getDatasetMeta(di).data[bi] as any;
           if (!bar) continue;
           const segH = Math.abs(bar.base - bar.y);
-          const curValFont = isHl ? valFont : `600 ${valFontSize - 2}px Pretendard, sans-serif`;
+          if (segH < 12) continue;
+          const curValFont = valFont;
           const curDiffFont = diffFont;
-          if (!isHl && segH < 10) continue;
-          const pct = total > 0 ? (v / total) * 100 : 0;
-          if (!isHl && (pct < 8 || segH < 12)) continue;
           const cy = (bar.y + bar.base) / 2;
 
           const bgc = (chart.data.datasets[di].backgroundColor as string) || '#888';

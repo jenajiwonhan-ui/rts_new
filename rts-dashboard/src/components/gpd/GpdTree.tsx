@@ -327,14 +327,14 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product, isNpd }) => {
                 onClick={() => toggleLv1(lv1Key)}
               >
                 <div className="tree-fixed">
-                  <div className="tree-row-name" style={{ fontWeight: 700, cursor: 'pointer' }}>
+                  <div className="tree-row-name" style={{ cursor: 'pointer' }}>
                     <span className="tree-tgl">{isLv1Open ? '▼' : '▶'}</span>
                     {lv1Key}
                   </div>
                 </div>
                 <div className="tree-time-spacer" />
                 {timeKeys.map(k => (
-                  <div key={k} className="tree-row-tc" style={{ fontWeight: 700 }}>{fmtVal(lv1Node.times[k])}</div>
+                  <div key={k} className="tree-row-tc">{fmtVal(lv1Node.times[k])}</div>
                 ))}
               </div>
 

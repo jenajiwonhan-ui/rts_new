@@ -191,7 +191,7 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org, productLabelMap }) =
       <div className="gpd-panel-header">
         <h3>Details</h3>
       </div>
-      <div style={{ padding: '0 20px 20px' }}>
+      <div style={{ padding: '12px 20px 20px' }}>
         <div className="gpd-panel-header" style={{ padding: '0 0 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <span className="frl">Period</span>

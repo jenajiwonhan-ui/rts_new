@@ -1,8 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { SvcDropdownOption } from './types';
 import { useData } from './contexts/DataContext';
-import Header from './components/layout/Header';
-import Breadcrumb from './components/layout/Breadcrumb';
 import Sidebar from './components/layout/Sidebar';
 import HomePage from './components/home/HomePage';
 import GpdView from './components/gpd/GpdView';
@@ -167,42 +165,39 @@ const App: React.FC = () => {
     return opts;
   }, [activeOrg, viewMode, allOrgNodes, prevMonthActiveOrgs]);
 
-  // Breadcrumb parts
-  const breadcrumbParts = useMemo(() => {
-    if (viewMode === 'home') return [];
-    if (viewMode === 'npd') return ['Non-product', 'Overview'];
-    if (viewMode === 'gpd') {
-      const parts = [activeOrg || ''];
-      if (curGpdProd) {
-        const game = poGames.find(g => g.gameName === curGpdProd);
-        parts.push(game?.gameShort || curGpdProd);
-      } else {
-        parts.push('All Products');
-      }
-      return parts;
-    }
-    if (viewMode === 'svc') {
-      const display = activeOrgAlias || activeOrg || '';
-      const parts = [display];
-      if (curSvcLv2) {
-        parts.push(curSvcLv2);
-      } else {
-        parts.push(`${display} All`);
-      }
-      return parts;
-    }
-    return [];
-  }, [viewMode, activeOrg, curGpdProd, curSvcLv2, poGames]);
 
   if (loading) {
-    return <div className="app"><Header /><div className="loading-spinner"><svg viewBox="0 0 44 44"><circle className="spinner-track" cx="22" cy="22" r="18" /><circle className="spinner-arc" cx="22" cy="22" r="18" /></svg></div></div>;
+    return (
+      <div className="app">
+        <div className="app-layout">
+          <Sidebar
+            activeOrg={null}
+            activeProduct={null}
+            onSelectOrg={() => {}}
+            onSelectGpdProduct={() => {}}
+            orgLv1={[]}
+            poOwnerIds={[]}
+            poGames={[]}
+            npdKey={NPD_KEY}
+            onHomeClick={handleHome}
+          />
+          <div className="main-area">
+            <div className="panel-wrap">
+              <div className="loading-spinner">
+                <svg viewBox="0 0 44 44">
+                  <circle className="spinner-track" cx="22" cy="22" r="18" />
+                  <circle className="spinner-arc" cx="22" cy="22" r="18" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="app">
-      <Header />
-      <Breadcrumb parts={breadcrumbParts} onHomeClick={handleHome} />
-
       <div className="app-layout">
         <Sidebar
           activeOrg={activeOrg}
@@ -213,64 +208,87 @@ const App: React.FC = () => {
           poOwnerIds={poOwnerIds}
           poGames={poGames}
           npdKey={NPD_KEY}
+          onHomeClick={handleHome}
         />
         <div className="main-area" ref={mainRef}>
+          <div className="panel-wrap">
+            {viewMode !== 'home' && activeOrg && (
+              <div className="panel-header">
+                <div className="panel-header-inner">
+                  <div className="ph-row">
+                    <div className="ph-title">
+                      {viewMode === 'gpd' && curGpdProd ? (
+                        <>
+                          <span className="ph-title-parent">{activeOrg}</span>
+                          <span className="ph-title-sep">›</span>
+                          {gpdTabs.find(t => t.short === curGpdProd || t.full === curGpdProd)?.full ?? curGpdProd}
+                        </>
+                      ) : viewMode === 'npd'
+                        ? 'Non-product Overview'
+                        : activeOrg}
+                    </div>
+                    {viewMode === 'svc' && svcDropdownOptions.length > 0 && (
+                      <select
+                        className="svc-org-select"
+                        value={curSvcLv2 || '__all'}
+                        onChange={e => {
+                          const opt = svcDropdownOptions.find(o => o.value === e.target.value);
+                          if (opt) handleSvcLv2Change(opt.value === '__all' ? null : opt.value, opt.level);
+                        }}
+                      >
+                        {svcDropdownOptions.map(opt => (
+                          <option key={opt.value} value={opt.value} style={opt.isOld ? { color: 'var(--color-text-disabled)' } : undefined}>
+                            {'　'.repeat(opt.indent)}{opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
-          {viewMode === 'svc' && svcDropdownOptions.length > 0 && (
-            <div className="filter-bar">
-              <select
-                className="svc-org-select"
-                value={curSvcLv2 || '__all'}
-                onChange={e => {
-                  const opt = svcDropdownOptions.find(o => o.value === e.target.value);
-                  if (opt) handleSvcLv2Change(opt.value === '__all' ? null : opt.value, opt.level);
-                }}
-              >
-                {svcDropdownOptions.map(opt => (
-                  <option key={opt.value} value={opt.value} style={opt.isOld ? { color: 'var(--ba)' } : undefined}>
-                    {'　'.repeat(opt.indent)}{opt.label}
-                  </option>
-                ))}
-              </select>
+            <div className="panel-body">
+              <div className="panel-body-inner">
+                {detailLoading && (
+                  <div className="loading-spinner">
+                    <svg viewBox="0 0 44 44">
+                      <circle className="spinner-track" cx="22" cy="22" r="18" />
+                      <circle className="spinner-arc" cx="22" cy="22" r="18" />
+                    </svg>
+                  </div>
+                )}
+                {viewMode === 'home' && <HomePage />}
+                {!detailLoading && viewMode === 'npd' && (
+                  <GpdView
+                    key="npd"
+                    org={NPD_KEY}
+                    product={null}
+                    gpdConfig={gpdConfig}
+                    npdProducts={npdProducts}
+                  />
+                )}
+                {!detailLoading && viewMode === 'gpd' && activeOrg && (
+                  <GpdView
+                    key={`${activeOrg}-${curGpdProd}`}
+                    org={activeOrg}
+                    product={curGpdProd}
+                    gpdConfig={gpdConfig}
+                  />
+                )}
+                {!detailLoading && viewMode === 'svc' && activeOrg && (
+                  <SvcView
+                    key={`${activeOrg}-${curSvcLv2}`}
+                    org={activeOrgAlias!}
+                    lv2={curSvcLv2}
+                    lvl={curSvcLvl}
+                    onLv2Change={handleSvcLv2Change}
+                    productLabelMap={productLabelMap}
+                  />
+                )}
+              </div>
             </div>
-          )}
-
-          {detailLoading && (
-            <div className="loading-spinner">
-              <svg viewBox="0 0 44 44">
-                <circle className="spinner-track" cx="22" cy="22" r="18" />
-                <circle className="spinner-arc" cx="22" cy="22" r="18" />
-              </svg>
-            </div>
-          )}
-          {viewMode === 'home' && <HomePage />}
-          {!detailLoading && viewMode === 'npd' && (
-            <GpdView
-              key="npd"
-              org={NPD_KEY}
-              product={null}
-              gpdConfig={gpdConfig}
-              npdProducts={npdProducts}
-            />
-          )}
-          {!detailLoading && viewMode === 'gpd' && activeOrg && (
-            <GpdView
-              key={`${activeOrg}-${curGpdProd}`}
-              org={activeOrg}
-              product={curGpdProd}
-              gpdConfig={gpdConfig}
-            />
-          )}
-          {!detailLoading && viewMode === 'svc' && activeOrg && (
-            <SvcView
-              key={`${activeOrg}-${curSvcLv2}`}
-              org={activeOrgAlias!}
-              lv2={curSvcLv2}
-              lvl={curSvcLvl}
-              onLv2Change={handleSvcLv2Change}
-              productLabelMap={productLabelMap}
-            />
-          )}
+          </div>
         </div>
       </div>
     </div>

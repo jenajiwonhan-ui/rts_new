@@ -296,12 +296,14 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
                 bar: { categoryPercentage: tmMode === 'weekly' ? 0.85 : 0.6 },
               },
               scales: {
-                x: { stacked: true, grid: { display: false }, ticks: { color: 'rgba(0,0,0,0.48)', font: { size: 12, weight: '500', family: '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif' } } },
+                x: { stacked: true, grid: { display: false }, ticks: { color: '#aeaeb2', font: { size: 11 } } },
                 y: {
                   stacked: true,
                   max: 1.0,
-                                    title: { display: true, text: tmMode === 'monthly' ? 'M/M' : 'Weekly RTS', color: 'rgba(0,0,0,0.48)', font: { size: 10, weight: '600', family: '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif' } },
-                  ticks: { color: 'rgba(0,0,0,0.48)', font: { size: 12, weight: '500', family: '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif' } },
+                  grid: { color: 'rgba(0,0,0,0.04)' },
+                  border: { display: false },
+                  title: { display: true, text: tmMode === 'monthly' ? 'M/M' : 'Weekly RTS', color: '#aeaeb2', font: { size: 10, weight: '600' } },
+                  ticks: { color: '#aeaeb2', font: { size: 11 } },
                 },
               },
             } as any}

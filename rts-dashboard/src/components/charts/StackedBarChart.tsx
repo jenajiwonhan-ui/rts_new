@@ -514,23 +514,25 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
             stacked: true,
             grid: { display: false },
             ticks: {
-              color: 'rgba(0,0,0,0.8)',
-              font: { size: 12, weight: '500', family: '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif' },
+              color: '#aeaeb2',
+              font: { size: 11 },
               maxRotation: isWeekly ? 60 : 0,
             },
           },
           y: {
             stacked: true,
             grace: '25%',
-                        title: {
+            grid: { color: 'rgba(0,0,0,0.04)' },
+            border: { display: false },
+            title: {
               display: true,
               text: yTitle,
-              color: 'rgba(0,0,0,0.8)',
-              font: { size: 10, weight: '600', family: '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif' },
+              color: '#aeaeb2',
+              font: { size: 10, weight: '600' },
               padding: { top: 0, bottom: 10 },
             },
             ...(maxY !== undefined ? { max: maxY } : {}),
-            ticks: { color: 'rgba(0,0,0,0.8)', font: { size: 12, weight: '500', family: '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif' } },
+            ticks: { color: '#aeaeb2', font: { size: 11 } },
           },
         },
       };
@@ -548,8 +550,8 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
             display: true,
             anchor: 'end' as const,
             align: 'end' as const,
-            color: 'rgba(0,0,0,0.48)',
-            font: { size: 12, weight: '500', family: '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif' },
+            color: '#aeaeb2',
+            font: { size: 11 },
             formatter: (value: number, ctx: any) => {
               if (ctx.datasetIndex !== ctx.chart.data.datasets.length - 1) return null;
               let t = 0;
@@ -569,17 +571,19 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
             stacked: true,
             grid: { display: false },
             ticks: {
-              color: 'rgba(0,0,0,0.8)',
-              font: { size: 12, weight: '500', family: '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif' },
+              color: '#aeaeb2',
+              font: { size: 11 },
               maxRotation: isWeekly ? 60 : 0,
             },
           },
           y: {
             stacked: true,
             grace: '15%',
-                        title: { display: true, text: yTitle, color: 'rgba(0,0,0,0.8)', font: { size: 10, weight: '600', family: '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif' } },
+            grid: { color: 'rgba(0,0,0,0.04)' },
+            border: { display: false },
+            title: { display: true, text: yTitle, color: '#aeaeb2', font: { size: 10, weight: '600' } },
             ...(maxY !== undefined ? { max: maxY } : {}),
-            ticks: { color: 'rgba(0,0,0,0.8)', font: { size: 12, weight: '500', family: '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif' } },
+            ticks: { color: '#aeaeb2', font: { size: 11 } },
           },
         },
       };

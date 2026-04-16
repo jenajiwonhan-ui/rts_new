@@ -187,15 +187,11 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
 
   return (
     <div className="content">
-      {/* Section 1: Overview */}
-      <div className="sec">
-        <div className="sec-title"><span className="sec-num">1</span>Overview</div>
-
-        <div className="gpd-panels">
-          {/* Panel 1: Mix + Ranking */}
-          <div className="gpd-panel">
-            <div className="gpd-panel-header">
-              <h3>{pieData.title}</h3>
+      <div className="gpd-panels">
+        {/* Panel 1: Monthly Snapshot */}
+        <div className="gpd-panel">
+          <div className="gpd-panel-header">
+            <h3>Monthly Snapshot</h3>
               <select className="fi" value={activeSnapYm} onChange={e => setSnapYm(e.target.value)}>
                 {mRange.map(ym => <option key={ym} value={ym}>{ymLabel(ym)}</option>)}
               </select>
@@ -226,45 +222,42 @@ const SvcView: React.FC<SvcViewProps> = ({ org, lv2, lvl, onLv2Change, productLa
             </div>
           </div>
 
-          {/* Panel 2: 4M Trend */}
-          <div className="gpd-panel">
-            <div className="gpd-panel-header">
-              <h3>4M Trend</h3>
-              <div className="gpd-controls">
-                <Toggle
-                  options={[
-                    { value: 'monthly', label: 'Monthly' },
-                    { value: 'weekly', label: 'Weekly' },
-                  ]}
-                  value={tmMode}
-                  onChange={v => setTmMode(v as 'monthly' | 'weekly')}
-                />
-              </div>
+        {/* Panel 2: 4-Month Trend */}
+        <div className="gpd-panel">
+          <div className="gpd-panel-header">
+            <h3>4-Month Trend</h3>
+            <div className="gpd-controls">
+              <Toggle
+                options={[
+                  { value: 'monthly', label: 'Monthly' },
+                  { value: 'weekly', label: 'Weekly' },
+                ]}
+                value={tmMode}
+                onChange={v => setTmMode(v as 'monthly' | 'weekly')}
+              />
             </div>
-            <ChartLegend items={barData.legendItems} className="gpd-legend" highlightedLabel={hlLabel} onHighlight={setHlLabel} />
-            <div style={{ padding: '0 16px' }}>
-              <div style={{ position: 'relative', height: 380 }}>
-                <StackedBarChart
-                  labels={barData.labels}
-                  datasets={barData.datasets}
-                  yTitle={tmMode === 'monthly' ? 'M/M' : 'Weekly RTS'}
-                  height={380}
-                  mode="svcGpd"
-                  timeMode={tmMode}
-                  isSvc={true}
-                  highlightedLabel={hlLabel}
-                  onHighlight={setHlLabel}
-                  lastBarWeeks={tmMode === 'monthly' ? lastMonthWeeks : 0}
-                  lastBarDayOfWeek={tmMode === 'weekly' ? dayOfWeek : 7}
-                />
-              </div>
+          </div>
+          <ChartLegend items={barData.legendItems} className="gpd-legend" highlightedLabel={hlLabel} onHighlight={setHlLabel} />
+          <div style={{ padding: '0 16px' }}>
+            <div style={{ position: 'relative', height: 380 }}>
+              <StackedBarChart
+                labels={barData.labels}
+                datasets={barData.datasets}
+                yTitle={tmMode === 'monthly' ? 'M/M' : 'Weekly RTS'}
+                height={380}
+                mode="svcGpd"
+                timeMode={tmMode}
+                isSvc={true}
+                highlightedLabel={hlLabel}
+                onHighlight={setHlLabel}
+                lastBarWeeks={tmMode === 'monthly' ? lastMonthWeeks : 0}
+                lastBarDayOfWeek={tmMode === 'weekly' ? dayOfWeek : 7}
+              />
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Section 2: Detail Table */}
-      <div className="sec">
+        {/* Panel 3: Details */}
         <SvcDetail detail={detail} org={org} productLabelMap={productLabelMap} />
       </div>
     </div>

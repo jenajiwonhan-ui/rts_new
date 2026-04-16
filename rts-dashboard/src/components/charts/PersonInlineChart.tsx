@@ -134,6 +134,28 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
       const diffFont = `400 ${diffFontSize}px Pretendard, sans-serif`;
       const hl = hlProdsRef.current;
 
+      // Pre-compute which datasets qualify (75% of bars must pass — same as StackedBarChart)
+      const dsVisible: boolean[] = [];
+      for (let di = 0; di < dsCount; di++) {
+        const dsLabel = chart.data.datasets[di].label || '';
+        const isHl = !hl || hl.has(dsLabel);
+        if (isHl) { dsVisible.push(true); continue; }
+        let passCount = 0;
+        for (let bi = 0; bi < barCount; bi++) {
+          const v = (chart.data.datasets[di].data[bi] as number) || 0;
+          if (v <= 0) continue;
+          const bar = chart.getDatasetMeta(di).data[bi] as any;
+          if (!bar) continue;
+          const segH = Math.abs(bar.base - bar.y);
+          if (segH < 4) continue;
+          let total = 0;
+          for (let d = 0; d < dsCount; d++) total += (chart.data.datasets[d].data[bi] as number) || 0;
+          const pct = total > 0 ? (v / total) * 100 : 0;
+          if (pct >= 10 && segH >= 20) passCount++;
+        }
+        dsVisible.push(barCount > 0 && passCount >= barCount * 0.75);
+      }
+
       for (let bi = 0; bi < barCount; bi++) {
         let topY = Infinity;
         let total = 0;
@@ -152,8 +174,9 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
 
         ctx.save();
 
-        // Per-segment labels (highlighted products always shown)
+        // Per-segment labels
         for (let di = 0; di < dsCount; di++) {
+          if (!dsVisible[di]) continue;
           const v = (chart.data.datasets[di].data[bi] as number) || 0;
           if (v <= 0) continue;
           const dsLabel = chart.data.datasets[di].label || '';
@@ -161,19 +184,17 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
           const bar = chart.getDatasetMeta(di).data[bi] as any;
           if (!bar) continue;
           const segH = Math.abs(bar.base - bar.y);
-          const curValFont = isHl ? valFont : `600 ${valFontSize - 2}px Pretendard, sans-serif`;
+          if (segH < 12) continue;
+          const curValFont = valFont;
           const curDiffFont = diffFont;
-          if (!isHl && segH < 10) continue;
-          const pct = total > 0 ? (v / total) * 100 : 0;
-          if (!isHl && (pct < 8 || segH < 12)) continue;
           const cy = (bar.y + bar.base) / 2;
 
           const bgc = (chart.data.datasets[di].backgroundColor as string) || '#888';
           const needChip = segH < 18;
           const isDark = isHl ? hexLum(bgc) < 0.45 : false;
-          const valColor = isHl ? (isDark ? '#ffffff' : '#2a2d3a') : '#888';
-          const posColor = isHl ? (isDark ? '#a0e0ff' : '#2a6f9e') : '#aaa';
-          const negColor = isHl ? (isDark ? '#ffb0a0' : '#b04030') : '#aaa';
+          const valColor = isHl ? (isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)') : '#888';
+          const posColor = isHl ? (isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.48)') : '#aaa';
+          const negColor = isHl ? (isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.48)') : '#aaa';
 
           if (bi > 0) {
             const prevV = (chart.data.datasets[di].data[bi - 1] as number) || 0;
@@ -189,20 +210,33 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
             const startX = bar.x - fullW / 2;
 
             if (needChip) {
-              const chipH = isWk ? 14 : 18, chipPad = isWk ? 3 : 4, r = 3;
-              ctx.beginPath();
-              ctx.roundRect(bar.x - (fullW + chipPad * 2) / 2, cy - chipH / 2, fullW + chipPad * 2, chipH, r);
-              ctx.fillStyle = bgc;
-              ctx.fill();
-              const chipStartX = bar.x - (fullW + chipPad * 2) / 2 + chipPad;
+              const chipH = isWk ? 14 : 18, chipPad = isWk ? 4 : 5, r = chipH / 2;
+              const chipW = fullW + chipPad * 2;
+              const cxChip = bar.x - chipW / 2;
+              const cyTopChip = cy - chipH / 2;
 
+              ctx.save();
+              ctx.globalAlpha = 0.92;
+              ctx.beginPath();
+              ctx.roundRect(cxChip, cyTopChip, chipW, chipH, r);
+              ctx.fillStyle = '#fff';
+              ctx.fill();
+              ctx.globalAlpha = 1;
+              ctx.beginPath();
+              ctx.roundRect(cxChip, cyTopChip, chipW, chipH, r);
+              ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+              ctx.restore();
+
+              const chipStartX = cxChip + chipPad;
               ctx.textBaseline = 'middle';
               ctx.textAlign = 'left';
               ctx.font = curValFont;
-              ctx.fillStyle = valColor;
+              ctx.fillStyle = 'rgba(0,0,0,0.8)';
               ctx.fillText(valText, chipStartX, cy);
               ctx.font = curDiffFont;
-              ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
+              ctx.fillStyle = 'rgba(0,0,0,0.48)';
               ctx.fillText(diffText, chipStartX + valW, cy);
             } else {
               ctx.textBaseline = 'middle';
@@ -220,14 +254,27 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
 
             if (needChip) {
               const tw = ctx.measureText(valText).width;
-              const chipH = isWk ? 14 : 18, chipPad = isWk ? 3 : 4, r = 3;
+              const chipH = isWk ? 14 : 18, chipPad = isWk ? 4 : 5, r = chipH / 2;
+              const chipW = tw + chipPad * 2;
+              const cxChip = bar.x - chipW / 2;
+              const cyTopChip = cy - chipH / 2;
+
+              ctx.save();
+              ctx.globalAlpha = 0.92;
               ctx.beginPath();
-              ctx.roundRect(bar.x - (tw + chipPad * 2) / 2, cy - chipH / 2, tw + chipPad * 2, chipH, r);
-              ctx.fillStyle = bgc;
+              ctx.roundRect(cxChip, cyTopChip, chipW, chipH, r);
+              ctx.fillStyle = '#fff';
               ctx.fill();
+              ctx.globalAlpha = 1;
+              ctx.beginPath();
+              ctx.roundRect(cxChip, cyTopChip, chipW, chipH, r);
+              ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+              ctx.restore();
             }
 
-            ctx.fillStyle = valColor;
+            ctx.fillStyle = needChip ? 'rgba(0,0,0,0.8)' : valColor;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(valText, bar.x, cy);
@@ -270,12 +317,14 @@ const PersonInlineChart: React.FC<PersonInlineChartProps> = ({
                 bar: { categoryPercentage: tmMode === 'weekly' ? 0.85 : 0.6 },
               },
               scales: {
-                x: { stacked: true, grid: { display: false }, ticks: { font: { size: 12, weight: '500', family: 'Pretendard' } } },
+                x: { stacked: true, grid: { display: false }, ticks: { color: '#aeaeb2', font: { size: 11 } } },
                 y: {
                   stacked: true,
                   max: 1.0,
-                  title: { display: true, text: tmMode === 'monthly' ? 'M/M' : 'Weekly RTS', font: { size: 10, weight: '600', family: 'Pretendard' } },
-                  ticks: { font: { size: 12, weight: '500', family: 'Pretendard' } },
+                  grid: { color: 'rgba(0,0,0,0.04)' },
+                  border: { display: false },
+                  title: { display: true, text: tmMode === 'monthly' ? 'M/M' : 'Weekly RTS', color: '#aeaeb2', font: { size: 10, weight: '600' } },
+                  ticks: { color: '#aeaeb2', font: { size: 11 } },
                 },
               },
             } as any}

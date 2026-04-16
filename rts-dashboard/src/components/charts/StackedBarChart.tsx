@@ -47,10 +47,11 @@ const gpdTopLabelPlugin = {
     const lbDayOfWeek = customOpts.lastBarDayOfWeek || 7;
     const showLastBar = lbWeeks > 0 ? lbWeeks >= 3 : lbDayOfWeek > 3;
     const isWeekly = customOpts.timeMode === 'weekly';
-    const totalFont = isWeekly ? '600 11px Pretendard, sans-serif' : '600 14px Pretendard, sans-serif';
-    const diffFont = isWeekly ? '400 9px Pretendard, sans-serif' : '400 11px Pretendard, sans-serif';
-    const segFont = isWeekly ? '600 11px Pretendard, sans-serif' : '600 14px Pretendard, sans-serif';
-    const segDiffFont = isWeekly ? '400 9px Pretendard, sans-serif' : '400 11px Pretendard, sans-serif';
+    const ff = '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif';
+    const totalFont = isWeekly ? `500 10px ${ff}` : `500 12px ${ff}`;
+    const diffFont = isWeekly ? `400 9px ${ff}` : `400 10px ${ff}`;
+    const segFont = isWeekly ? `500 10px ${ff}` : `500 12px ${ff}`;
+    const segDiffFont = isWeekly ? `400 9px ${ff}` : `400 10px ${ff}`;
 
     // ── Pre-compute per-bar totals ──
     const barTotals: number[] = [];
@@ -105,7 +106,7 @@ const gpdTopLabelPlugin = {
 
       // ── Total label (always shown) ──
       ctx.font = totalFont;
-      ctx.fillStyle = '#5f6280';
+      ctx.fillStyle = 'rgba(0,0,0,0.8)';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
 
@@ -124,11 +125,11 @@ const gpdTopLabelPlugin = {
 
           ctx.textAlign = 'left';
           ctx.font = totalFont;
-          ctx.fillStyle = '#5f6280';
+          ctx.fillStyle = 'rgba(0,0,0,0.8)';
           ctx.fillText(totalText, startX, topY - 10);
 
           ctx.font = diffFont;
-          ctx.fillStyle = diff >= 0 ? '#4a8cb8' : '#c07060';
+          ctx.fillStyle = diff >= 0 ? 'rgba(0,0,0,0.48)' : 'rgba(0,0,0,0.48)';
           ctx.fillText(diffText, startX + totalW, topY - 10);
         }
       } else if (barCount > 1) {
@@ -142,11 +143,11 @@ const gpdTopLabelPlugin = {
 
         ctx.textAlign = 'left';
         ctx.font = totalFont;
-        ctx.fillStyle = '#5f6280';
+        ctx.fillStyle = 'rgba(0,0,0,0.8)';
         ctx.fillText(totalText, startX, topY - 10);
 
         ctx.font = diffFont;
-        ctx.fillStyle = '#9498b0';
+        ctx.fillStyle = 'rgba(0,0,0,0.48)';
         ctx.fillText(diffText, startX + totalW, topY - 10);
       } else {
         ctx.fillText(totalText, lastMeta.data[bi].x, topY - 10);
@@ -169,9 +170,9 @@ const gpdTopLabelPlugin = {
         const needChip = segH < 18;
         const lum = hexLum(bgc);
         const isDark = lum < 0.45;
-        const valColor = isDark ? '#ffffff' : '#2a2d3a';
-        const posColor = isDark ? '#a0e0ff' : '#2a6f9e';
-        const negColor = isDark ? '#ffb0a0' : '#b04030';
+        const valColor = isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)';
+        const posColor = isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.48)';
+        const negColor = isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.48)';
 
         // For zero-height segments, compute y from scale + stack sum
         let cy: number;
@@ -201,23 +202,36 @@ const gpdTopLabelPlugin = {
           const startX = bar.x - fullW / 2;
 
           if (needChip) {
-            const chipH = isWeekly ? 14 : 18, chipPad = isWeekly ? 3 : 4, r = 3;
-            const cx = bar.x - (fullW + chipPad * 2) / 2;
+            const chipH = isWeekly ? 14 : 18, chipPad = isWeekly ? 4 : 5, r = chipH / 2;
+            const chipW = fullW + chipPad * 2;
+            const cx = bar.x - chipW / 2;
             const cyTop = cy - chipH / 2;
-            ctx.beginPath();
-            ctx.roundRect(cx, cyTop, fullW + chipPad * 2, chipH, r);
-            ctx.fillStyle = bgc;
-            ctx.fill();
-            const chipStartX = cx + chipPad;
 
+            // frosted pill background
+            ctx.save();
+            ctx.globalAlpha = 0.92;
+            ctx.beginPath();
+            ctx.roundRect(cx, cyTop, chipW, chipH, r);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            // subtle border
+            ctx.beginPath();
+            ctx.roundRect(cx, cyTop, chipW, chipH, r);
+            ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+            ctx.restore();
+
+            const chipStartX = cx + chipPad;
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'left';
             ctx.font = segFont;
-            ctx.fillStyle = valColor;
+            ctx.fillStyle = 'rgba(0,0,0,0.8)';
             ctx.fillText(valText, chipStartX, cy);
 
             ctx.font = segDiffFont;
-            ctx.fillStyle = segDiff >= 0 ? posColor : negColor;
+            ctx.fillStyle = 'rgba(0,0,0,0.48)';
             ctx.fillText(diffText, chipStartX + valW, cy);
           } else {
             ctx.textBaseline = 'middle';
@@ -236,16 +250,27 @@ const gpdTopLabelPlugin = {
 
           if (needChip) {
             const tw = ctx.measureText(valText).width;
-            const chipH = isWeekly ? 14 : 18, chipPad = isWeekly ? 3 : 4, r = 3;
-            const cx = bar.x - (tw + chipPad * 2) / 2;
+            const chipH = isWeekly ? 14 : 18, chipPad = isWeekly ? 4 : 5, r = chipH / 2;
+            const chipW = tw + chipPad * 2;
+            const cx = bar.x - chipW / 2;
             const cyTop = cy - chipH / 2;
+
+            ctx.save();
+            ctx.globalAlpha = 0.92;
             ctx.beginPath();
-            ctx.roundRect(cx, cyTop, tw + chipPad * 2, chipH, r);
-            ctx.fillStyle = bgc;
+            ctx.roundRect(cx, cyTop, chipW, chipH, r);
+            ctx.fillStyle = '#fff';
             ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.beginPath();
+            ctx.roundRect(cx, cyTop, chipW, chipH, r);
+            ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+            ctx.restore();
           }
 
-          ctx.fillStyle = valColor;
+          ctx.fillStyle = needChip ? 'rgba(0,0,0,0.8)' : valColor;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(valText, bar.x, cy);
@@ -273,7 +298,8 @@ const segLabelsPlugin = {
     const lbDayOfWeek2 = customOpts2.lastBarDayOfWeek || 7;
     const showLastBar2 = lbWeeks2 > 0 ? lbWeeks2 >= 3 : lbDayOfWeek2 > 3;
     const isWeekly2 = customOpts2.timeMode === 'weekly';
-    const segFont2 = isWeekly2 ? '500 11px Pretendard, sans-serif' : '500 14px Pretendard, sans-serif';
+    const ff2 = '-apple-system, BlinkMacSystemFont, SF Pro Text, Pretendard, sans-serif';
+    const segFont2 = isWeekly2 ? `500 10px ${ff2}` : `500 12px ${ff2}`;
 
     const barCount2 = chart.getDatasetMeta(0)?.data.length || 0;
     const lastBar2 = barCount2 - 1;
@@ -342,14 +368,27 @@ const segLabelsPlugin = {
 
         if (needChip) {
           const tw = ctx.measureText(valText).width;
-          const chipH = 18, chipPad = 4, r = 3;
+          const chipH = 18, chipPad = 5, r = chipH / 2;
+          const chipW = tw + chipPad * 2;
+          const cx2 = bar.x - chipW / 2;
+          const cyTop2 = cy - chipH / 2;
+
+          ctx.save();
+          ctx.globalAlpha = 0.92;
           ctx.beginPath();
-          ctx.roundRect(bar.x - (tw + chipPad * 2) / 2, cy - chipH / 2, tw + chipPad * 2, chipH, r);
-          ctx.fillStyle = bgc;
+          ctx.roundRect(cx2, cyTop2, chipW, chipH, r);
+          ctx.fillStyle = '#fff';
           ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.beginPath();
+          ctx.roundRect(cx2, cyTop2, chipW, chipH, r);
+          ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+          ctx.restore();
         }
 
-        ctx.fillStyle = isDark ? '#ffffff' : '#2a2d3a';
+        ctx.fillStyle = needChip ? 'rgba(0,0,0,0.8)' : (isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)');
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(valText, bar.x, cy);
@@ -475,21 +514,25 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
             stacked: true,
             grid: { display: false },
             ticks: {
-              font: { size: 12, weight: '500', family: 'Pretendard' },
+              color: '#aeaeb2',
+              font: { size: 11 },
               maxRotation: isWeekly ? 60 : 0,
             },
           },
           y: {
             stacked: true,
             grace: '25%',
+            grid: { color: 'rgba(0,0,0,0.04)' },
+            border: { display: false },
             title: {
               display: true,
               text: yTitle,
-              font: { size: 10, weight: '600', family: 'Pretendard' },
+              color: '#aeaeb2',
+              font: { size: 10, weight: '600' },
               padding: { top: 0, bottom: 10 },
             },
             ...(maxY !== undefined ? { max: maxY } : {}),
-            ticks: { font: { size: 12, weight: '500', family: 'Pretendard' } },
+            ticks: { color: '#aeaeb2', font: { size: 11 } },
           },
         },
       };
@@ -507,8 +550,8 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
             display: true,
             anchor: 'end' as const,
             align: 'end' as const,
-            color: '#7a7d98',
-            font: { size: 12, weight: '600', family: 'Pretendard' },
+            color: '#aeaeb2',
+            font: { size: 11 },
             formatter: (value: number, ctx: any) => {
               if (ctx.datasetIndex !== ctx.chart.data.datasets.length - 1) return null;
               let t = 0;
@@ -528,16 +571,19 @@ const StackedBarChart: React.FC<StackedBarChartProps> = ({
             stacked: true,
             grid: { display: false },
             ticks: {
-              font: { size: 12, weight: '500', family: 'Pretendard' },
+              color: '#aeaeb2',
+              font: { size: 11 },
               maxRotation: isWeekly ? 60 : 0,
             },
           },
           y: {
             stacked: true,
             grace: '15%',
-            title: { display: true, text: yTitle, font: { size: 10, weight: '600', family: 'Pretendard' } },
+            grid: { color: 'rgba(0,0,0,0.04)' },
+            border: { display: false },
+            title: { display: true, text: yTitle, color: '#aeaeb2', font: { size: 10, weight: '600' } },
             ...(maxY !== undefined ? { max: maxY } : {}),
-            ticks: { font: { size: 12, weight: '500', family: 'Pretendard' } },
+            ticks: { color: '#aeaeb2', font: { size: 11 } },
           },
         },
       };

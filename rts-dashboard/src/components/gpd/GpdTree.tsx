@@ -213,7 +213,7 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product, isNpd }) => {
                 onClick={() => togglePerson(personKey)}
                 title="Show detail chart"
               >
-                <svg viewBox="0 0 16 14" fill="none" stroke={expandedPersons.has(personKey) ? '#6c5ce7' : '#9498b0'} strokeWidth="1.5">
+                <svg viewBox="0 0 16 14" fill="none" stroke={expandedPersons.has(personKey) ? '#0071e3' : '#86868b'} strokeWidth="1.5">
                   <rect x="1" y="1" width="14" height="12" rx="2" />
                   <polyline points="4,10 6,6 9,8 12,4" />
                 </svg>
@@ -251,13 +251,11 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product, isNpd }) => {
   ];
 
   return (
-    <div>
-      <div className="sec-title">
-        <span className="sec-num">2</span> Details
+    <div className="gpd-panel">
+      <div className="gpd-panel-header">
+        <h3>Details</h3>
       </div>
-
-      <div className="gpd-panel" style={{ padding: 20 }}>
-        {/* Controls */}
+      <div style={{ padding: '12px 20px 20px' }}>
         <div className="gpd-panel-header" style={{ padding: '0 0 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <span className="frl" style={{ marginLeft: 8 }}>Period</span>
@@ -329,14 +327,14 @@ const GpdTree: React.FC<GpdTreeProps> = ({ detail, org, product, isNpd }) => {
                 onClick={() => toggleLv1(lv1Key)}
               >
                 <div className="tree-fixed">
-                  <div className="tree-row-name" style={{ fontWeight: 700, cursor: 'pointer' }}>
+                  <div className="tree-row-name" style={{ cursor: 'pointer' }}>
                     <span className="tree-tgl">{isLv1Open ? '▼' : '▶'}</span>
                     {lv1Key}
                   </div>
                 </div>
                 <div className="tree-time-spacer" />
                 {timeKeys.map(k => (
-                  <div key={k} className="tree-row-tc" style={{ fontWeight: 700 }}>{fmtVal(lv1Node.times[k])}</div>
+                  <div key={k} className="tree-row-tc">{fmtVal(lv1Node.times[k])}</div>
                 ))}
               </div>
 

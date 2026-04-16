@@ -187,13 +187,11 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org, productLabelMap }) =
   };
 
   return (
-    <div>
-      <div className="sec-title">
-        <span className="sec-num">2</span> Details
+    <div className="gpd-panel">
+      <div className="gpd-panel-header">
+        <h3>Details</h3>
       </div>
-
-      <div className="gpd-panel" style={{ padding: 20 }}>
-        {/* Controls */}
+      <div style={{ padding: '12px 20px 20px' }}>
         <div className="gpd-panel-header" style={{ padding: '0 0 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <span className="frl">Period</span>
@@ -274,7 +272,7 @@ const SvcDetail: React.FC<SvcDetailProps> = ({ detail, org, productLabelMap }) =
                         title="Show detail chart"
                         style={{ marginRight: 6 }}
                       >
-                        <svg viewBox="0 0 16 14" fill="none" stroke={expandedPersons.has(rowKey) ? '#6c5ce7' : '#9498b0'} strokeWidth="1.5">
+                        <svg viewBox="0 0 16 14" fill="none" stroke={expandedPersons.has(rowKey) ? '#0071e3' : '#86868b'} strokeWidth="1.5">
                           <rect x="1" y="1" width="14" height="12" rx="2" />
                           <polyline points="4,10 6,6 9,8 12,4" />
                         </svg>
